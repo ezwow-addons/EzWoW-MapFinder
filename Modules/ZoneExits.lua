@@ -9,8 +9,9 @@
 -- own speed allows (a flight, a boat, a teleport or a corpse run to a spirit
 -- healer is left out). Spots closer than SAME yards are one exit.
 -- The spots are shared with the other EzWoW users (record kind "X":
--- "fromMap,toMap,continent,x,y,dir"); a spot from others is used once enough
--- different players sent it. They are also shipped with the addon
+-- "fromMap,toMap,continent,x,y,dir"); a spot from others is used from the
+-- first report, like other places (the sender already leaves out flights,
+-- boats and teleports); later reports still count. They are also shipped with the addon
 -- (Database/ShareSeed.lua, "exits").
 -- Zone maps show a door mark with an arrow (dir: u/d/l/r on the map) at each
 -- spot, on the maps of both zones; a click opens the other zone's map
@@ -130,7 +131,10 @@ local function eachSpot(fn)
                 if type(sp) == "table" then fn(from, to, sp[1], sp[2], sp[3], sp[4]) end
             end
             for _, sp in ipairs(type(row.peers) == "table" and row.peers or {}) do
-                if type(sp) == "table" and sp.ok then fn(from, to, sp[1], sp[2], sp[3], sp[4]) end
+                -- also the ones stored while two players were needed
+                if type(sp) == "table" and (sp.ok or (tonumber(sp.n) or 0) >= 1) then
+                    fn(from, to, sp[1], sp[2], sp[3], sp[4])
+                end
             end
         end
     end
@@ -284,8 +288,8 @@ if s and type(s.RegisterKind) == "function" then
             end
             return out
         end,
-        -- needed: how many different players must report a spot before it is used
-        receive = function(text, hash, needed)
+        -- a spot is used from the first report (the library's "needed" is not applied)
+        receive = function(text, hash)
             local from, to, c, x, y, dir = text:match("^(%d+),(%d+),(%d+),(%-?[%d%.]+),(%-?[%d%.]+),([udlr])$")
             from, to, c, x, y = tonumber(from), tonumber(to), tonumber(c), tonumber(x), tonumber(y)
             if not (from and to and c and x and y) or from == to or from > 100000 or to > 100000 or c > 10000
@@ -323,12 +327,12 @@ if s and type(s.RegisterKind) == "function" then
             if found.by[h] or (found.n or 0) >= MAX_VOTERS then return false end
             found.by[h] = true
             found.n = (found.n or 0) + 1
-            if not found.ok and found.n >= (tonumber(needed) or 2) then
+            if not found.ok then
                 found.ok = true
                 changed()
                 return true
             end
-            return not found.ok and "wait" or false
+            return false
         end,
         describe = function(text)
             local from, to = text:match("^(%d+),(%d+),")
