@@ -44,7 +44,7 @@ WoW Forever (`Interface: 16001`) · `/ezmf`
 | ⑤ | 위치 표시 | 결과를 누르면 그 지역 지도로 이동해 **튀는 화살표(▼)**와 게임 기본 **웨이포인트 핀**을 찍습니다. 결과는 **지금 있는 지역 → 가까운 순 → 나머지** 순서로 정렬되고, 처음 누르면 가장 가까운 출현 지점으로 갑니다. 출현 지점이 여러 곳이면 누를 때마다 다음 위치로 넘어갑니다. |
 | ⑥ | 지역 정보 | 지역 이름 아래에 적정 레벨(내 레벨 대비 색)과 필요한 낚시 숙련도 |
 | ⑦ | 좌표 | 지도 아래에 플레이어 · 마우스 좌표 |
-| ⑧ | 이동 수단 | 배 · 비행선 · 깊은굴 지하철 · 차원문(제프라스 섬 · 강물숲 · 달라란 포함)을 진영 색 아이콘으로 표시하고, 누르면 도착지 지도로 이동합니다. |
+| ⑧ | 이동 수단 | 배 · 비행선 · 깊은굴 지하철 · 차원문(제프라스 섬 · 강물숲 · 달라란 포함)을 진영 색 아이콘으로 표시하고, 누르면 도착지 지도로 이동합니다. 지역 지도에는 이웃 지역으로 가는 **입구**(길·고개·굴)를 문 아이콘과 방향 화살표로 표시하고, 누르면 그 지역 지도로 이동합니다. 입구는 걷거나 탈것을 타고 지역 경계를 넘은 자리를 기록해 다른 EzWoW 사용자와 공유한 것이라, 다닌 곳부터 채워집니다(비행·배·순간이동은 빼고, 다른 사용자의 기록은 2명이 확인해야 표시). |
 | ⑨ | 미탐험 지역 | 가 보지 않은 지역의 안개를 걷고 푸른빛으로 구분합니다(전장 지도 `Shift+M` 포함). |
 | ⑩ | 레어 알림 | 근처에 레어 몬스터가 보이면(이름표 · 마우스오버 · 대상) 카드와 소리로 알려 주고, **지도에서 보기**로 위치를 찍고, **대상 지정** 버튼과 징표 아이콘(해골 등 8가지)으로 바로 대상을 잡거나 징표를 찍습니다(전투가 끝난 뒤 나타남). 대상 지정이나 징표를 누르면 그 자리에 추적 핀과 화살표도 찍습니다. 같은 몬스터는 5분에 한 번, 던전 · 공격대에서는 알리지 않습니다. |
 | ⑪ | 퀘스트 표시 | 목표를 다 채운 퀘스트의 보고 위치(금색 테두리 안의 노란 `?`)와 진행 중인 퀘스트의 목표 위치(퀘스트마다 다른 색 점, 미니맵에도 표시). 누르면 웨이포인트를 찍습니다(한 번 더 누르면 해제). **EzWoW - Quest**가 켜져 있으면 EzWoW - Quest가 맡습니다. |
@@ -79,7 +79,7 @@ WoW Forever (`Interface: 16001`) · `/ezmf`
 | ④ | 월드맵 지역 적정 레벨 · 낚시 숙련도 표시 | 켬 |
 | ⑤ | 캐릭터 이동 중 월드맵 반투명화 해제 | 켬 |
 | ⑤ | 지도 뒤 배경 어둡기: 전체 화면 월드맵 뒤 화면을 0~100%(5% 단위)로 어둡게. **기본** 버튼을 누르면 게임 기본 모습으로 | 기본 |
-| ⑤ | 월드맵 배 · 비행선 · 지하철 · 차원문 표시 | 켬 |
+| ⑤ | 월드맵 배 · 비행선 · 지하철 · 차원문 · 지역 입구 표시 | 켬 |
 | ⑥ | 근처에 레어 몬스터가 나타나면 알림 (이름표 · 마우스오버 · 대상, 같은 몬스터는 5분에 한 번, 던전 · 공격대 제외) | 켬 |
 | ⑥ | 레어 알림 소리 재생 | 켬 |
 | ⑦ | 완료한 퀘스트의 보고 위치를 지도에 표시 (목표를 다 채운 퀘스트를 주거나 받는 곳에 노란 `?`, 누르면 웨이포인트) | 켬 |
@@ -175,7 +175,7 @@ Map Finder is an offline location search for the World Map: **monsters, rare eli
 | ⑤ | Show on map | Click a result to jump to its zone with a **bouncing arrow (▼)** and a Blizzard **waypoint pin**. Results are sorted **your current zone → nearest → the rest**, and the first click goes to the nearest spawn. With several spawns, each click moves to the next one. |
 | ⑥ | Zone info | Level range (coloured against your level) and required fishing skill under the zone name |
 | ⑦ | Coordinates | Player and cursor coordinates below the map |
-| ⑧ | Transport | Boats, zeppelins, the Deeprun Tram and portals (incl. Zephras Isle, Riverglades and Dalaran) in faction colours; click to open the destination map. |
+| ⑧ | Transport | Boats, zeppelins, the Deeprun Tram and portals (incl. Zephras Isle, Riverglades and Dalaran) in faction colours; click to open the destination map. Zone maps show the **ways into neighbouring zones** (roads, passes, tunnels) as door marks with an arrow; click one to open that zone's map. These are spots where players walked or rode over a zone border, shared between EzWoW users, so they fill in as people travel (flights, boats and teleports are left out; another player's spot shows once two players have confirmed it). |
 | ⑨ | Unexplored areas | Lifts the fog from areas you have not visited and tints them light blue (battlefield map `Shift+M` too). |
 | ⑩ | Rare alert | A card and a sound when a rare monster is nearby (nameplate · mouseover · target); **Show on map** marks it, and the **Target** button and the eight raid mark icons target or mark it at once (they appear out of combat) and set a tracking pin and arrow at its spot. Once per 5 minutes per monster, not in dungeons or raids. |
 | ⑪ | Quest marks | Turn-in spots of finished quests (a yellow `?` in a gold rim) and objective spots of quests in progress (one dot colour per quest, on the minimap too). Click for a waypoint (click again to remove). Handled by **EzWoW - Quest** while it is enabled. |
@@ -210,7 +210,7 @@ Map Finder is an offline location search for the World Map: **monsters, rare eli
 | ④ | Show zone level & fishing skill on World Map | On |
 | ⑤ | Disable map fade while character is moving | On |
 | ⑤ | Map backdrop darkness: how dark the screen behind the full-screen World Map gets, 0–100% in 5% steps. The **Default** button keeps the game's own look | Default |
-| ⑤ | Show boats, zeppelins, trams & portals on World Map | On |
+| ⑤ | Show boats, zeppelins, trams, portals & zone exits on World Map | On |
 | ⑥ | Alert when a rare monster is nearby (nameplate · mouseover · target, once per 5 minutes per monster, not in dungeons or raids) | On |
 | ⑥ | Play a sound with rare alerts | On |
 | ⑦ | Show turn-in spots of finished quests on the map (yellow `?` where quests with all objectives done are given / turned in; click for a waypoint) | On |

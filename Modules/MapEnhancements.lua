@@ -496,6 +496,7 @@ local TRANSIT_ICONS = {
     zepp = "Interface\\AddOns\\EzWoW-MapFinder\\Media\\Transit-Zeppelin",
     tram = "Interface\\AddOns\\EzWoW-MapFinder\\Media\\Transit-Tram",
     portal = "Interface\\AddOns\\EzWoW-MapFinder\\Media\\Transit-Portal",
+    exit = "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up",   -- only when the door marks are missing
 }
 local pendingTransitMapID, transitNavigationFrame
 
@@ -578,6 +579,17 @@ function WorldMapCanvasEnhancer.obtainTransitPin(entryIndex)
     pin:SetScript("OnEnter", function(self)
         local apiInfo = self.info
         if not apiInfo then return end
+        if apiInfo.exit then
+            -- the way into the next zone (Modules/ZoneExits.lua)
+            local destName = ns.ZoneExits and ns.ZoneExits.MapName(apiInfo.dest) or tostring(apiInfo.dest)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText(string.format(L.zoneExitTo or "To %s", destName), unpack(Theme.accent))
+            GameTooltip:AddLine(L.transitClick or "Click: Open destination map", unpack(Theme.muted))
+            GameTooltip:AddDoubleLine(" ", "EzWoW - Map Finder", 0, 0, 0, 0.5, 0.5, 0.5)
+            GameTooltip:Show()
+            if _G.EzWoWTooltipTagSizer and _G.EzWoWTooltipTagSizer.Refit then pcall(_G.EzWoWTooltipTagSizer.Refit, GameTooltip) end
+            return
+        end
         local hasKo = (ns.activeLocale == "koKR")
         local titleStr = hasKo and apiInfo.ko or apiInfo.en
         local fcVal = FACTION_COLORS[apiInfo.fac] or FACTION_COLORS.N
@@ -677,6 +689,13 @@ function WorldMapCanvasEnhancer.collectTransitForMap(uiMapID)
     local isOverview = Enum and Enum.UIMapType and (mapType == Enum.UIMapType.Continent or mapType == Enum.UIMapType.World
         or mapType == Enum.UIMapType.Cosmic)
     if not isOverview or not (C_Map and C_Map.GetMapRectOnMap) then
+        -- zone maps also get the ways into the neighbouring zones
+        if not isOverview and ns.ZoneExits and ns.ZoneExits.ForMap then
+            local okExits, exits = pcall(ns.ZoneExits.ForMap, uiMapID)
+            if okExits and type(exits) == "table" then
+                for _, item in ipairs(exits) do direct[#direct + 1] = item end
+            end
+        end
         return direct
     end
     local groups = {}
@@ -709,6 +728,25 @@ function WorldMapCanvasEnhancer.collectTransitForMap(uiMapID)
     return groups
 end
 
+-- the game's door mark with an arrow toward the next zone (nil: not on this client)
+local EXIT_ATLAS = { u = "poi-door-up", d = "poi-door-down", l = "poi-door-left", r = "poi-door-right" }
+local exitAtlasKnown = {}
+function WorldMapCanvasEnhancer.exitAtlas(dir)
+    local atlas = EXIT_ATLAS[dir] or "poi-door"
+    local known = exitAtlasKnown[atlas]
+    if known == nil then
+        known = false
+        if C_Texture and C_Texture.GetAtlasInfo then
+            local ok, info = pcall(C_Texture.GetAtlasInfo, atlas)
+            known = ok and type(info) == "table" or false
+        end
+        exitAtlasKnown[atlas] = known
+    end
+    if known then return atlas end
+    if atlas ~= "poi-door" then return WorldMapCanvasEnhancer.exitAtlas(nil) end
+    return nil
+end
+
 function WorldMapCanvasEnhancer.renderWorldTransitMarkers()
     for index = 1, #transitPins do
         transitPins[index]:Hide()
@@ -729,10 +767,20 @@ function WorldMapCanvasEnhancer.renderWorldTransitMarkers()
         pin:SetParent(canvasFrame)
         pin.info = apiInfo
         local texture = TRANSIT_ICONS[apiInfo.kind] or TRANSIT_ICONS.boat
-        pin.icon:SetTexture(texture)
-        pin:SetHighlightTexture(texture, "ADD")
+        local atlas = apiInfo.exit and WorldMapCanvasEnhancer.exitAtlas(apiInfo.dir)
+        if atlas then
+            pin.icon:SetAtlas(atlas)
+            pin:SetHighlightAtlas(atlas, "ADD")
+        else
+            pin.icon:SetTexture(texture)
+            pin.icon:SetTexCoord(0, 1, 0, 1)
+            pin:SetHighlightTexture(texture, "ADD")
+        end
         local highlight = pin:GetHighlightTexture()
-        if highlight then highlight:SetAlpha(0.3) end
+        if highlight then
+            if not atlas then highlight:SetTexCoord(0, 1, 0, 1) end
+            highlight:SetAlpha(0.3)
+        end
         pin.nx, pin.ny = apiInfo.x / 100, apiInfo.y / 100
         WorldMapCanvasEnhancer.anchorTransitPin(pin, canvasFrame, cwVal, chVal, cScale)
         pin:Show()

@@ -108,3 +108,4 @@ Modules\ServiceNpcPins.lua
 Modules\QuestObjectivePins.lua
 Modules\RareAlert.lua
 Modules\NpcSpots.lua
+Modules\ZoneExits.lua
