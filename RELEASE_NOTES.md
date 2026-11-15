@@ -1,13 +1,9 @@
-# v2.0.31
+# v2.0.32
 
 ### 한국어
-- 데이터 공유 방식을 새로 바꿨습니다. 같은 기록을 되풀이해 보내지 않고 상대에게 없는 기록만 주고받아, 공유로 오가는 메시지가 크게 줄었습니다. 예전 버전을 쓰는 사람과도 계속 공유됩니다.
-- 공유 기록의 확인 대기 공간에 남아 있던 이미 확인된 기록을 정리해 저장 데이터가 줄었습니다.
-- /ezshare 창의 사람 탭에서 상대가 쓰는 공유 버전과 EzWoW 애드온 버전을 볼 수 있습니다.
-- EzWoW 사용자들이 확인한 상점·NPC 위치·퀘스트 기록을 최신으로 반영했습니다.
+- 다른 사용자가 공유한 지역 입구가 한 사람의 기록만으로도 지역 지도에 표시됩니다.
+- 퀘스트 목표 정보를 크게 늘렸고, EzWoW 사용자들이 공유한 채집 위치·지역 입구·상점 기록을 최신으로 반영했습니다.
 
 ### English
-- Data sharing works in a new way: records are no longer sent again and again, only what the other player does not have yet, so far fewer sharing messages go around. Sharing with players on older versions continues.
-- Records already confirmed are cleared from the shared-data waiting list, so the saved data is smaller.
-- The Players tab of the /ezshare window shows each player's sharing version and EzWoW addon versions.
-- Updated the shop, NPC location and quest records confirmed by EzWoW users.
+- Zone exits shared by other users now show on zone maps from a single report.
+- Added many more quest objectives, and updated the gathering spots, zone exits and shop records shared by EzWoW users.
