@@ -341,6 +341,8 @@ if s and type(s.RegisterKind) == "function" then
                 or abs(x) > 100000 or abs(y) > 100000 then return false end
             -- both sides must be zone maps of this client
             if not (isZoneMap(from) and isZoneMap(to)) then return false end
+            -- a spot taken off in the data (in the sea and the like) is not kept
+            if blocked(from, to, c, x, y) then return false end
             local t = store()
             if not t then return false end
             local key = from .. ">" .. to

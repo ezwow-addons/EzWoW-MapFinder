@@ -212,18 +212,49 @@ function WorldMapCanvasEnhancer.installMapFogRevealHooks()
     end)
 end
 
--- The hovered mark comes to the front of marks that overlap it (its label
--- too), and goes back to its own level when the mouse leaves.
-function WorldMapCanvasEnhancer.raisePin(pin)
-    if pin.ezBaseLevel == nil then pin.ezBaseLevel = pin:GetFrameLevel() end
-    pin:SetFrameLevel(pin.ezBaseLevel + 500)
-end
-function WorldMapCanvasEnhancer.lowerPin(pin)
-    if pin.ezBaseLevel ~= nil then
-        pin:SetFrameLevel(pin.ezBaseLevel)
-        pin.ezBaseLevel = nil
+-- One mark of all EzWoW map marks is in front: the last one the mouse was on
+-- (above every other mark, its label too). It stays in front after the mouse
+-- leaves, until another mark is hovered; the one before goes back to its place.
+-- Kept in a table all EzWoW addons share (EzWoWMapPinFront).
+function WorldMapCanvasEnhancer.mapPinFront()
+    local f = _G.EzWoWMapPinFront
+    if type(f) == "table" and (tonumber(f.v) or 0) >= 2 then return f end
+    f = { v = 2 }
+    local STRATA = { BACKGROUND = 1, LOW = 2, MEDIUM = 3, HIGH = 4, DIALOG = 5, FULLSCREEN = 6,
+        FULLSCREEN_DIALOG = 7, TOOLTIP = 8 }
+    function f.Restore(pin)
+        if not pin then return end
+        if pin.ezBaseLevel ~= nil then
+            if pin.ezBaseStrata then pcall(pin.SetFrameStrata, pin, pin.ezBaseStrata) end
+            -- a level its addon gave it since (the marks were drawn again) stays
+            if pin:GetFrameLevel() == pin.ezFrontLevel then pcall(pin.SetFrameLevel, pin, pin.ezBaseLevel) end
+        end
+        pin.ezBaseLevel, pin.ezBaseStrata, pin.ezFrontLevel = nil, nil, nil
+        if f.pin == pin then f.pin = nil end
     end
+    function f.Raise(pin)
+        if not pin then return end
+        if f.pin == pin then
+            if pin:GetFrameLevel() == pin.ezFrontLevel then return end
+            -- drawn again at its own level since it came to the front: raised from there
+            pin.ezBaseLevel = pin:GetFrameLevel()
+        else
+            if f.pin then f.Restore(f.pin) end
+            pin.ezBaseLevel, pin.ezBaseStrata = pin:GetFrameLevel(), pin:GetFrameStrata()
+            f.pin = pin
+        end
+        -- the marks of the quest addons sit in HIGH: at least that layer
+        if (STRATA[pin.ezBaseStrata] or 0) < STRATA.HIGH then pcall(pin.SetFrameStrata, pin, "HIGH") end
+        local parent = pin:GetParent()
+        pcall(pin.SetFrameLevel, pin, ((parent and parent:GetFrameLevel()) or 0) + 1200)
+        pin.ezFrontLevel = pin:GetFrameLevel()
+    end
+    _G.EzWoWMapPinFront = f
+    return f
 end
+function WorldMapCanvasEnhancer.raisePin(pin) WorldMapCanvasEnhancer.mapPinFront().Raise(pin) end
+-- (the mark stays in front when the mouse leaves)
+function WorldMapCanvasEnhancer.lowerPin() end
 
 local mapCoordsFrame
 function WorldMapCanvasEnhancer.refreshMapCoordsVisibility()
@@ -260,12 +291,16 @@ function WorldMapCanvasEnhancer.initializeMapCoordOverlay()
     end
     place()
     windowFrame:SetMovable(true)
+    -- the place is kept in ns.DB (a share of the map): the game must not keep a
+    -- screen position of its own for it (it would win at the next login)
+    if windowFrame.SetDontSavePosition then pcall(windowFrame.SetDontSavePosition, windowFrame, true) end
     windowFrame:SetClampedToScreen(true)
     windowFrame:EnableMouse(true)
     windowFrame:RegisterForDrag("LeftButton")
     windowFrame:SetScript("OnDragStart", function(self) self.isDragged = true; self:StartMoving() end)
     windowFrame:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
+        if self.SetUserPlaced then pcall(self.SetUserPlaced, self, false) end
         self.isDragged = nil
         local cx, cy = self:GetCenter()
         local left, bottom = scrollFrame:GetLeft(), scrollFrame:GetBottom()
@@ -285,10 +320,18 @@ function WorldMapCanvasEnhancer.initializeMapCoordOverlay()
     end)
     windowFrame:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:SetText(L.coordsMoveTip or "Drag to move · Right-click: back to the default place", 1, 1, 1, true)
+        GameTooltip:SetText(L.coordsMoveTip or "Drag to move · Right-click: back to the default place", 1, 1, 1, 1, true)
         GameTooltip:Show()
     end)
     windowFrame:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    -- the map closed while it was dragged: the drag ends, back to its kept place
+    windowFrame:SetScript("OnHide", function(self)
+        if not self.isDragged then return end
+        self:StopMovingOrSizing()
+        if self.SetUserPlaced then pcall(self.SetUserPlaced, self, false) end
+        self.isDragged = nil
+        place()
+    end)
     windowFrame:SetFrameStrata("HIGH")
     windowFrame:SetFrameLevel((parentFrame:GetFrameLevel() or 10) + 50)
     if windowFrame.SetBackdrop then

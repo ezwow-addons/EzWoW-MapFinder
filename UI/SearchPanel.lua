@@ -323,16 +323,11 @@ function EntityExplorerPanel.acquireBouncingPinButton(idx)
     pinFrame:SetScript("OnLeave", function()
         GameTooltip:Hide()
     end)
-    -- the hovered mark comes to the front of marks that overlap it
+    -- the hovered mark comes to the front of every EzWoW map mark and stays
+    -- there (Modules/MapEnhancements.lua: one mark in front for all addons)
     pinFrame:HookScript("OnEnter", function(self)
-        if self.ezBaseLevel == nil then self.ezBaseLevel = self:GetFrameLevel() end
-        self:SetFrameLevel(self.ezBaseLevel + 500)
-    end)
-    pinFrame:HookScript("OnLeave", function(self)
-        if self.ezBaseLevel ~= nil then
-            self:SetFrameLevel(self.ezBaseLevel)
-            self.ezBaseLevel = nil
-        end
+        local front = ns.WorldMapCanvasEnhancer and ns.WorldMapCanvasEnhancer.mapPinFront
+        if front then front().Raise(self) end
     end)
     pinFrame:SetScript("OnClick", function(self)
         if self.spawnIndex and ns.selectedEntity then

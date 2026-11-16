@@ -33,18 +33,49 @@ local function setPropagateClicks(frame, value)
     frame:SetPropagateMouseClicks(value)
 end
 
--- The hovered mark comes to the front of marks that overlap it, and goes back
--- to its own level when the mouse leaves.
-local function raisePin(self)
-    if self.ezBaseLevel == nil then self.ezBaseLevel = self:GetFrameLevel() end
-    self:SetFrameLevel(self.ezBaseLevel + 500)
-end
-local function lowerPin(self)
-    if self.ezBaseLevel ~= nil then
-        self:SetFrameLevel(self.ezBaseLevel)
-        self.ezBaseLevel = nil
+-- One mark of all EzWoW map marks is in front: the last one the mouse was on
+-- (above every other mark, its label too). It stays in front after the mouse
+-- leaves, until another mark is hovered; the one before goes back to its place.
+-- Kept in a table all EzWoW addons share (EzWoWMapPinFront).
+local function mapPinFront()
+    local f = _G.EzWoWMapPinFront
+    if type(f) == "table" and (tonumber(f.v) or 0) >= 2 then return f end
+    f = { v = 2 }
+    local STRATA = { BACKGROUND = 1, LOW = 2, MEDIUM = 3, HIGH = 4, DIALOG = 5, FULLSCREEN = 6,
+        FULLSCREEN_DIALOG = 7, TOOLTIP = 8 }
+    function f.Restore(pin)
+        if not pin then return end
+        if pin.ezBaseLevel ~= nil then
+            if pin.ezBaseStrata then pcall(pin.SetFrameStrata, pin, pin.ezBaseStrata) end
+            -- a level its addon gave it since (the marks were drawn again) stays
+            if pin:GetFrameLevel() == pin.ezFrontLevel then pcall(pin.SetFrameLevel, pin, pin.ezBaseLevel) end
+        end
+        pin.ezBaseLevel, pin.ezBaseStrata, pin.ezFrontLevel = nil, nil, nil
+        if f.pin == pin then f.pin = nil end
     end
+    function f.Raise(pin)
+        if not pin then return end
+        if f.pin == pin then
+            if pin:GetFrameLevel() == pin.ezFrontLevel then return end
+            -- drawn again at its own level since it came to the front: raised from there
+            pin.ezBaseLevel = pin:GetFrameLevel()
+        else
+            if f.pin then f.Restore(f.pin) end
+            pin.ezBaseLevel, pin.ezBaseStrata = pin:GetFrameLevel(), pin:GetFrameStrata()
+            f.pin = pin
+        end
+        -- the marks of the quest addons sit in HIGH: at least that layer
+        if (STRATA[pin.ezBaseStrata] or 0) < STRATA.HIGH then pcall(pin.SetFrameStrata, pin, "HIGH") end
+        local parent = pin:GetParent()
+        pcall(pin.SetFrameLevel, pin, ((parent and parent:GetFrameLevel()) or 0) + 1200)
+        pin.ezFrontLevel = pin:GetFrameLevel()
+    end
+    _G.EzWoWMapPinFront = f
+    return f
 end
+local function raisePin(self) mapPinFront().Raise(self) end
+-- (the mark stays in front when the mouse leaves)
+local function lowerPin() end
 
 -- Marks grow a little when the map is zoomed in (less than the map itself,
 -- at most 3x), so they stay readable without covering the map.
