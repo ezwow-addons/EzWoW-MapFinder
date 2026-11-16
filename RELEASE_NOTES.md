@@ -1,23 +1,17 @@
-# v2.0.33
+# v2.0.34
 
 ### 한국어
-- 바다 위에 지역 입구가 표시되던 문제를 고쳤습니다. 헤엄쳐서 넘은 자리는 서로 다른 2명이 기록해야 입구로 표시하고, 유령 상태로 넘은 자리는 기록하지 않습니다.
-- EzWoW-Data가 깔려 있으면 예전 데이터가 쓰이던 문제를 고쳤습니다. 애드온에 든 최신 데이터를 먼저 씁니다.
-- `/ezshare` 창 "종류별" 탭에서 다른 사용자에게 받아 지금 쓰고 있는 기록 수와 보이는 곳을 볼 수 있습니다.
-- 다른 사용자가 알려 준 NPC·몬스터 위치와 채집 위치에 "EzWoW 사용자가 알려 준 위치"·"EzWoW 사용자가 여기서 채집함"을 표시합니다.
-- 전투 중이나 던전에서 받은 희귀 몬스터 알림을 버리지 않고, 나온 뒤에 차례로 보여 줍니다.
-- 다른 사용자가 본 희귀 몬스터 알림에서 "지도에서 보기"·"대상 지정"을 누르면 모든 출현 지점 대신 그 사용자가 본 자리를 찍습니다.
-- 몬스터 위치 보고가 8개 차면 새 보고를 받지 못하던 문제를 고쳤습니다.
-- 세계지도 아래 플레이어·마우스 좌표 표시를 끌어서 옮길 수 있습니다(오른쪽 클릭: 처음 위치).
-- 지도에 핀이 겹쳐 있을 때 마우스를 올린 핀이 이름표와 함께 맨 위로 올라옵니다.
+- 지도에 한 퀘스트의 목표 위치 점이 좁은 곳에 몰려 있으면 서로 붙지 않게 묶어서 보여 줍니다(마우스를 올리면 묶인 자리를 펼쳐 보여 줌).
+- 지도에서 마지막으로 마우스를 올린 핀이 마우스를 떼도 다른 모든 EzWoW 핀(퀘스트·던전·비행·낚시 등) 위에 남습니다. 다른 핀에 올리면 그 핀이 맨 위로 옵니다. 지도가 다시 그려진 뒤에도 같은 핀이 다시 올라옵니다.
+- 옮긴 좌표 상자가 다음 접속 때 다른 자리에 나오거나, 옮기는 중에 지도를 닫으면 자리가 어긋나던 문제를 고쳤습니다.
+- 좌표 상자에 마우스를 올리면 나던 오류를 고쳤습니다.
+- 퀘스트를 주는 NPC가 여럿일 때 이전 NPC가 다른 후보 목록에서 빠지던 문제를 고쳤습니다.
+- 공유 기록 저장 데이터가 오래 쓰면 조금씩 커지던 문제를 고쳤습니다.
 
 ### English
-- Fixed zone exits showing up at sea. A spot crossed swimming now shows only after two players noted it, and crossings as a ghost are no longer noted.
-- Fixed older data being used when EzWoW-Data is installed; the addon's own, newer data now comes first.
-- The /ezshare "By kind" tab now shows how many records from other players are in use and where they show.
-- NPC and monster spots and gathering spots from other EzWoW users are marked as such in their tooltips.
-- Rare alerts that arrive in combat or in a dungeon are no longer lost; they show one after another afterwards.
-- On a rare another player saw, "Show on map" and "Target" now point at the spot where it was seen instead of every spawn spot.
-- Fixed monster spots taking no new reports once 8 were waiting.
-- The player and cursor coordinates on the World Map can be dragged to another place (right-click: back to the default place).
-- On the map, the hovered pin comes to the front of pins overlapping it, with its label.
+- Quest objective dots crowded in a small area are grouped so they no longer touch (hovering one shows the spots it stands for).
+- The map pin you hovered last stays in front of all other EzWoW pins (quests, dungeons, flights, fishing…) after the mouse leaves, until you hover another one. It also comes to the front again after the map is redrawn.
+- Fixed the moved coordinates box showing up elsewhere at the next login, or out of place when the map was closed while dragging it.
+- Fixed an error when hovering the coordinates box.
+- Fixed the previous quest giver dropping out of the other givers list when a quest has several.
+- Fixed shared-record save data slowly growing over long use.
