@@ -6,18 +6,25 @@
 -- the next zone. This character notes the spot each time it walks, rides or
 -- swims over a zone border: two position samples half a second apart, one
 -- on each side, close together and no farther apart than the character's
--- own speed allows (a flight, a boat, a teleport or a corpse run to a spirit
--- healer is left out). Spots closer than SAME yards are one exit.
+-- own speed allows (a flight, a boat, a teleport and a ghost's run are left
+-- out). Spots closer than SAME yards are one exit.
 -- The spots are shared with the other EzWoW users (record kind "X":
--- "fromMap,toMap,continent,x,y,dir"); a spot from others is used from the
--- first report, like other places (the sender already leaves out flights,
--- boats and teleports); later reports still count. They are also shipped with the addon
--- (Database/ShareSeed.lua, "exits").
+-- "fromMap,toMap,continent,x,y,dir,2[,w]"; 2 is the record format, w marks
+-- a crossing made swimming). A spot is used from the first report; one only
+-- crossed swimming (a way over water is seldom a road) needs two players.
+-- Older versions did not tell swims apart: their spots are used from the
+-- first report too, and the few found over the sea are listed in the shipped
+-- data ("exitsBlocked") and never shown.
+-- They are also shipped with the addon (Database/ShareSeed.lua, "exits").
 -- Zone maps show a door mark with an arrow (dir: u/d/l/r on the map) at each
 -- spot, on the maps of both zones; a click opens the other zone's map
 -- (Modules/MapEnhancements.lua draws them with the boat and portal marks).
 -- store X: ["from>to"] = { own = { {continent, x, y, dir, n}, ... },
---                          peers = { {continent, x, y, dir, n = votes, by = {}, ok}, ... } }
+--                          peers = { {continent, x, y, dir, n = votes, by = {}, land, water, ok}, ... } }
+-- (own spots noted by these rules carry the format as their 6th value and
+-- true as the 7th while they were only crossed swimming; a peer spot gets
+-- land = true once someone sent it as crossed on land, water = true once
+-- someone sent it as swum)
 local _, ns = ...
 
 local KIND = "X"
@@ -28,6 +35,7 @@ local SAME = 60           -- yards: crossings this close are one exit
 local MAX_OWN = 6         -- own exit spots kept per zone pair
 local MAX_PEERS = 8       -- spots from others kept per zone pair
 local MAX_VOTERS = 8
+local FORMAT = 2          -- record format: tells land and water crossings apart, never a ghost's run
 local ZONE_TYPE = (Enum and Enum.UIMapType and Enum.UIMapType.Zone) or 3
 
 local isSecret = _G.issecretvalue or function() return false end
@@ -115,6 +123,28 @@ ZoneExits.MapName = mapName
 local OPPOSITE = { u = "d", d = "u", l = "r", r = "l" }
 local forMapCache = {}
 
+-- a spot from others is shown from the first report, unless it was only
+-- ever sent as swum: then once two players sent it
+local function shown(sp)
+    local n = tonumber(sp.n) or 0
+    if sp.water == true and sp.land ~= true then return n >= 2 end
+    return n >= 1
+end
+
+-- spots shared by mistake before swims were told apart (one over the sea):
+-- never shown, in either direction (Database/ShareSeed.lua "exitsBlocked")
+local function blocked(from, to, c, x, y)
+    local s = ns.Share
+    local list = s and type(s.Seed) == "function" and s.Seed("exitsBlocked")
+    if type(list) ~= "table" then return false end
+    for _, key in ipairs({ from .. ">" .. to, to .. ">" .. from }) do
+        for _, sp in ipairs(type(list[key]) == "table" and list[key] or {}) do
+            if type(sp) == "table" and near(sp[1], sp[2], sp[3], c, x, y, SAME) then return true end
+        end
+    end
+    return false
+end
+
 local function changed()
     forMapCache = {}
     if ns.RefreshTransitPins and WorldMapFrame and WorldMapFrame:IsShown() then pcall(ns.RefreshTransitPins) end
@@ -131,8 +161,7 @@ local function eachSpot(fn)
                 if type(sp) == "table" then fn(from, to, sp[1], sp[2], sp[3], sp[4]) end
             end
             for _, sp in ipairs(type(row.peers) == "table" and row.peers or {}) do
-                -- also the ones stored while two players were needed
-                if type(sp) == "table" and (sp.ok or (tonumber(sp.n) or 0) >= 1) then
+                if type(sp) == "table" and shown(sp) then
                     fn(from, to, sp[1], sp[2], sp[3], sp[4])
                 end
             end
@@ -163,6 +192,7 @@ function ZoneExits.ForMap(mapID)
         local dest
         if from == mapID then dest = to elseif to == mapID then dest = from; dir = OPPOSITE[dir] end
         if not dest or dest == mapID or type(c) ~= "number" or type(x) ~= "number" or type(y) ~= "number" then return end
+        if blocked(from, to, c, x, y) then return end
         -- the same way out found twice (both directions, several players): one mark
         for _, k in ipairs(kept) do
             if k.dest == dest and near(k.c, k.wx, k.wy, c, x, y, SAME) then return end
@@ -193,7 +223,7 @@ local function direction(dx, dy)
     return dy >= 0 and "l" or "r"
 end
 
-local function noteCrossing(from, to, c, x, y, dir)
+local function noteCrossing(from, to, c, x, y, dir, water)
     local t = store()
     if not t then return end
     local key = from .. ">" .. to
@@ -202,12 +232,19 @@ local function noteCrossing(from, to, c, x, y, dir)
     for _, sp in ipairs(row.own) do
         if type(sp) == "table" and near(sp[1], sp[2], sp[3], c, x, y, SAME) then
             sp[5] = math.min((tonumber(sp[5]) or 1) + 1, 999)
+            -- crossed again by the current rules on land: sent in the current
+            -- format as a land crossing from now on. Swum again, it stays as it
+            -- was (an older spot keeps the old form, so others keep showing it)
+            if not water then
+                sp[6] = FORMAT
+                sp[7] = nil
+            end
             t[key] = row
             return
         end
     end
     if #row.own >= MAX_OWN then return end
-    row.own[#row.own + 1] = { c, round1(x), round1(y), dir, 1 }
+    row.own[#row.own + 1] = { c, round1(x), round1(y), dir, 1, FORMAT, water or nil }
     t[key] = row
     changed()
 end
@@ -221,7 +258,8 @@ end
 local last   -- the previous sample: { zone, c, x, y, t, speed }
 
 local function sample()
-    if truthy(IsInInstance) or truthy(UnitOnTaxi, "player") or truthy(UnitInVehicle, "player") then
+    if truthy(IsInInstance) or truthy(UnitOnTaxi, "player") or truthy(UnitInVehicle, "player")
+        or truthy(UnitIsDeadOrGhost, "player") then
         last = nil
         return
     end
@@ -241,8 +279,9 @@ local function sample()
     end
     local now = GetTime()
     local zone = zoneOf(mapID)
+    local swimming = truthy(IsSwimming)
     local prev = last
-    last = { zone = zone, c = c, x = x, y = y, t = now, speed = speed }
+    last = { zone = zone, c = c, x = x, y = y, t = now, speed = speed, swim = swimming }
     if not (prev and zone and prev.zone and zone ~= prev.zone and prev.c == c) then return end
     local dt = now - prev.t
     if dt <= 0 or dt > MAX_GAP then return end
@@ -259,7 +298,7 @@ local function sample()
         if not okFacing or type(facing) ~= "number" or isSecret(facing) then return end
         dir = direction(math.cos(facing), math.sin(facing))
     end
-    noteCrossing(prev.zone, zone, c, (prev.x + x) / 2, (prev.y + y) / 2, dir)
+    noteCrossing(prev.zone, zone, c, (prev.x + x) / 2, (prev.y + y) / 2, dir, (swimming or prev.swim) and true or nil)
 end
 
 if C_Timer and C_Timer.NewTicker then
@@ -281,16 +320,22 @@ if s and type(s.RegisterKind) == "function" then
                     for _, sp in ipairs(type(row.own) == "table" and row.own or {}) do
                         if type(sp) == "table" and type(sp[1]) == "number" and type(sp[2]) == "number"
                             and type(sp[3]) == "number" and OPPOSITE[sp[4]] then
-                            out[#out + 1] = string.format("%s,%s,%d,%.1f,%.1f,%s", from, to, sp[1], sp[2], sp[3], sp[4])
+                            local formatField = ""
+                            if sp[6] == FORMAT then formatField = "," .. FORMAT .. (sp[7] == true and ",w" or "") end
+                            out[#out + 1] = string.format("%s,%s,%d,%.1f,%.1f,%s%s", from, to, sp[1], sp[2], sp[3], sp[4], formatField)
                         end
                     end
                 end
             end
             return out
         end,
-        -- a spot is used from the first report (the library's "needed" is not applied)
+        -- a spot is used from the first report, one only ever swum from the
+        -- second player (the library's "needed" is not applied)
         receive = function(text, hash)
-            local from, to, c, x, y, dir = text:match("^(%d+),(%d+),(%d+),(%-?[%d%.]+),(%-?[%d%.]+),([udlr])$")
+            local from, to, c, x, y, dir, recordFormat, waterMark = text:match("^(%d+),(%d+),(%d+),(%-?[%d%.]+),(%-?[%d%.]+),([udlr]),(%d+),?(w?)$")
+            if not from then
+                from, to, c, x, y, dir = text:match("^(%d+),(%d+),(%d+),(%-?[%d%.]+),(%-?[%d%.]+),([udlr])$")
+            end
             from, to, c, x, y = tonumber(from), tonumber(to), tonumber(c), tonumber(x), tonumber(y)
             if not (from and to and c and x and y) or from == to or from > 100000 or to > 100000 or c > 10000
                 or abs(x) > 100000 or abs(y) > 100000 then return false end
@@ -313,7 +358,7 @@ if s and type(s.RegisterKind) == "function" then
                     -- the oldest unconfirmed report makes room for a new one
                     local drop
                     for i = #row.peers, 1, -1 do
-                        if not row.peers[i].ok then drop = i break end
+                        if type(row.peers[i]) ~= "table" or not shown(row.peers[i]) then drop = i break end
                     end
                     if not drop then return false end
                     table.remove(row.peers, drop)
@@ -322,22 +367,50 @@ if s and type(s.RegisterKind) == "function" then
                 table.insert(row.peers, 1, found)
             end
             t[key] = row
+            local wasShown = shown(found)
+            if tonumber(recordFormat) == FORMAT then
+                if waterMark == "w" then found.water = true else found.land = true end
+            end
             found.by = type(found.by) == "table" and found.by or {}
             local h = tostring(hash or "?")
-            if found.by[h] or (found.n or 0) >= MAX_VOTERS then return false end
-            found.by[h] = true
-            found.n = (found.n or 0) + 1
-            if not found.ok then
-                found.ok = true
+            if not found.by[h] and (found.n or 0) < MAX_VOTERS then
+                found.by[h] = true
+                found.n = (found.n or 0) + 1
+            end
+            local nowShown = shown(found)
+            found.ok = nowShown or nil
+            if nowShown and not wasShown then
                 changed()
                 return true
             end
+            -- no longer shown (the only sender now says it was swum): maps again
+            if wasShown and not nowShown then changed() end
+            -- kept until another player sends it
+            if not nowShown then return "wait" end
             return false
         end,
         describe = function(text)
             local from, to = text:match("^(%d+),(%d+),")
             if not from then return nil end
             return (mapName(tonumber(from)) or from) .. " > " .. (mapName(tonumber(to)) or to)
+        end,
+        -- for the shared records window: spots from others in use now (shown
+        -- by the rules above and not among the blocked ones)
+        used = function()
+            local n = 0
+            for key, row in pairs(store() or {}) do
+                local from, to
+                if type(key) == "string" then from, to = key:match("^(%d+)>(%d+)$") end
+                from, to = tonumber(from), tonumber(to)
+                if from and to and type(row) == "table" then
+                    for _, sp in ipairs(type(row.peers) == "table" and row.peers or {}) do
+                        if type(sp) == "table" and shown(sp) and not blocked(from, to, sp[1], sp[2], sp[3]) then
+                            n = n + 1
+                        end
+                    end
+                end
+            end
+            return n
         end,
     })
 end

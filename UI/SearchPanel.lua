@@ -313,12 +313,26 @@ function EntityExplorerPanel.acquireBouncingPinButton(idx)
         if self.sub then
             GameTooltip:AddLine(self.sub, 0.929, 0.957, 0.969, true)
         end
+        if self.shared then
+            GameTooltip:AddLine(L.spotShared or "Spot shared by EzWoW users", 0.6, 0.8, 1)
+        end
         GameTooltip:AddDoubleLine(" ", "EzWoW - Map Finder", 0, 0, 0, 0.5, 0.5, 0.5)
         GameTooltip:Show()
         if _G.EzWoWTooltipTagSizer and _G.EzWoWTooltipTagSizer.Refit then pcall(_G.EzWoWTooltipTagSizer.Refit, GameTooltip) end
     end)
     pinFrame:SetScript("OnLeave", function()
         GameTooltip:Hide()
+    end)
+    -- the hovered mark comes to the front of marks that overlap it
+    pinFrame:HookScript("OnEnter", function(self)
+        if self.ezBaseLevel == nil then self.ezBaseLevel = self:GetFrameLevel() end
+        self:SetFrameLevel(self.ezBaseLevel + 500)
+    end)
+    pinFrame:HookScript("OnLeave", function(self)
+        if self.ezBaseLevel ~= nil then
+            self:SetFrameLevel(self.ezBaseLevel)
+            self.ezBaseLevel = nil
+        end
     end)
     pinFrame:SetScript("OnClick", function(self)
         if self.spawnIndex and ns.selectedEntity then
@@ -398,6 +412,8 @@ renderActiveEntityMapPins = function()
             end
             pinFrame.title = headerTitle
             pinFrame.sub = string.format("(%.1f, %.1f) [%d/%d]", mxVal * 100, myVal * 100, index, #ns.selectedEntity.spawns)
+            -- a spot other EzWoW users found (Modules/NpcSpots.lua)
+            pinFrame.shared = type(sp) == "table" and sp.shared == true or nil
             pinFrame:ClearAllPoints()
             pinFrame:SetPoint("CENTER", canvasFrame, "TOPLEFT", mxVal * cwVal, -myVal * chVal)
             pinFrame:Show()
@@ -1191,6 +1207,11 @@ function EntityExplorerPanel.init()
                 else
                     GameTooltip:AddLine(zName, 0.929, 0.957, 0.969)
                 end
+            end
+            -- the spot above came from other EzWoW users (Modules/NpcSpots.lua)
+            local shownSpot = recordEntry.spawns and recordEntry.spawns[(spCount == 1) and 1 or spIdx]
+            if type(shownSpot) == "table" and shownSpot.shared == true then
+                GameTooltip:AddLine(L.spotShared or "Spot shared by EzWoW users", 0.6, 0.8, 1)
             end
             if recordEntry.kind == "object" and recordEntry.id then
                 local hReq = HERB_SKILL_BY_OBJECT[recordEntry.id]

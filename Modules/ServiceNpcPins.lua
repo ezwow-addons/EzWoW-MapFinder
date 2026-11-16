@@ -435,6 +435,9 @@ local function showTooltip(self)
             GameTooltip:AddLine(nameText, 0.929, 0.957, 0.969)
         end
     end
+    if group.shared then
+        GameTooltip:AddLine(L.spotShared or "Spot shared by EzWoW users", 0.6, 0.8, 1)
+    end
     GameTooltip:AddLine(L.serviceNpcHint or "Click: set waypoint", unpack(Theme.muted))
     GameTooltip:AddDoubleLine(" ", "EzWoW - Map Finder", 0, 0, 0, 0.5, 0.5, 0.5)
     GameTooltip:Show()
@@ -585,6 +588,8 @@ function ServiceNpcPins.refresh()
                 group.seen[svc] = true
                 group.list[#group.list + 1] = svc
             end
+            -- a spot other EzWoW users found (Modules/NpcSpots.lua)
+            if type(spot.spawn) == "table" and spot.spawn.shared == true then group.shared = true end
         end
     end
 
@@ -693,6 +698,7 @@ local function readSkills()
 end
 
 -- every spot once: { kind = "herb"/"ore", need = skill, entry, spawn [, shared] }, by continent and grid cell
+-- (shared: gathered there by another EzWoW user, not in the built-in data)
 local spotsByContinent
 local SHARED_SAME = 10             -- yards: a shared spot this close to a known one is the same place
 
@@ -738,20 +744,25 @@ local function buildSpots()
                 for _, sp in ipairs(e.spawns) do
                     local continent, x, y = sp[1], sp[2], sp[3]
                     if type(continent) == "number" and continent >= 0 and type(x) == "number" and type(y) == "number" then
-                        addSpot(continent, x, y, { kind = kind, need = need, entry = e, spawn = sp })
+                        -- (Modules/NpcSpots.lua puts the gathered places in with
+                        -- shared = true on those other EzWoW users found)
+                        addSpot(continent, x, y, { kind = kind, need = need, entry = e, spawn = sp,
+                            shared = sp.shared == true or nil })
                     end
                 end
             end
         end
     end
     -- places other players of the EzWoW addons (and this character) gathered
-    -- herbs and ore that the built-in data does not have (Libs/EzWoWShare)
+    -- herbs and ore that the built-in data does not have (Libs/EzWoWShare);
+    -- only those others found (received or shipped) are marked
     local share = ns.Share
     local gather = share and share.Data and share.Data().gather
     if type(gather) ~= "table" then return end
     -- places shipped with the addon (Database/ShareSeed.lua) that this
     -- player has not received
     local shipped = share.Seed and share.Seed("gather")
+    local fromShipped = {}
     if type(shipped) == "table" then
         local merged = {}
         for objectID, spots in pairs(gather) do merged[objectID] = spots end
@@ -760,6 +771,7 @@ local function buildSpots()
                 local mine = merged[objectID]
                 if type(mine) ~= "table" then
                     merged[objectID] = spots
+                    for _, sp in ipairs(spots) do fromShipped[sp] = true end
                 else
                     local list = {}
                     for _, sp in ipairs(mine) do list[#list + 1] = sp end
@@ -772,7 +784,10 @@ local function buildSpots()
                                 break
                             end
                         end
-                        if not near then list[#list + 1] = sp end
+                        if not near then
+                            list[#list + 1] = sp
+                            fromShipped[sp] = true
+                        end
                     end
                     merged[objectID] = list
                 end
@@ -790,11 +805,17 @@ local function buildSpots()
                 local continent, x, y = sp[1], sp[2], sp[3]
                 if type(continent) == "number" and type(x) == "number" and type(y) == "number"
                     and not knownNear(continent, x, y) then
-                    addSpot(continent, x, y, { kind = kind, need = need, entry = e, spawn = sp, shared = true })
+                    addSpot(continent, x, y, { kind = kind, need = need, entry = e, spawn = sp,
+                        shared = (sp.shared == true or fromShipped[sp]) or nil })
                 end
             end
         end
     end
+end
+
+-- the objects' spots changed (Modules/NpcSpots.lua): rebuilt when next needed
+function GatherPins.forget()
+    spotsByContinent = nil
 end
 
 -- new shared places: rebuilt on the next refresh
@@ -832,8 +853,11 @@ local function showGatherTooltip(self)
     local ok = (skills[first.kind] or 0) >= (first.need or 1)
     GameTooltip:AddLine(string.format("%s %d", skillName, first.need or 1), ok and 0.6 or 1, ok and 0.9 or 0.4, ok and 0.6 or 0.4)
     GameTooltip:AddLine(L.gatherSpotHint or "A place where it can grow (not always there)", unpack(Theme.muted))
-    if first.shared then
-        GameTooltip:AddLine(L.gatherShared or "Gathered here by an EzWoW user", 0.6, 0.8, 1)
+    for _, spot in ipairs(list) do
+        if spot.shared then
+            GameTooltip:AddLine(L.gatherShared or "Gathered here by an EzWoW user", 0.6, 0.8, 1)
+            break
+        end
     end
     if self:GetParent() ~= Minimap then
         GameTooltip:AddLine(L.serviceNpcHint or "Click: set waypoint", unpack(Theme.muted))

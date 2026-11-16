@@ -206,6 +206,12 @@ function RareAlertNotifier.buildAlertCard()
     card:HookScript("OnHide", function(self)
         self.closeAfterCombat = nil
         RareAlertNotifier.updateTargetButton()
+        -- the next rare another player saw, if one is waiting
+        if C_Timer and C_Timer.After then
+            C_Timer.After(1, function()
+                if RareAlertNotifier.showPendingShared then pcall(RareAlertNotifier.showPendingShared) end
+            end)
+        end
     end)
     local pos = ns.DB and ns.DB.rareCardPos
     if type(pos) == "table" and pos.point then
@@ -498,9 +504,12 @@ function RareAlertNotifier.pinCardMonster()
     local now = GetTime()
     if now - lastPinAt < 0.5 then return end
     lastPinAt = now
-    if card.entity then
+    -- a sighting another player shared: only its spot (not every spawn spot)
+    if card.entity and not card.sharedSpot then
         ns.selectedEntity = card.entity
         ns.selectedSpawnIdx = card.spawnIdx or 1
+    elseif card.sharedSpot and ns.ClearPointedSpawn then
+        pcall(ns.ClearPointedSpawn)
     end
     if ns.ApplyWaypointForSpawn then ns.ApplyWaypointForSpawn(card.pinSpot, card.pinName, nil, true) end
     if ns.RefreshMapPins and not (InCombatLockdown and InCombatLockdown()) then pcall(ns.RefreshMapPins) end
@@ -522,7 +531,22 @@ end
 
 function RareAlertNotifier.focusCardEntityOnMap()
     local card = alertCard
-    if not card or not card.entity then return end
+    if not card then return end
+    -- a sighting another player shared: the map opens on the spot where it was
+    -- seen (a roaming rare has many spawn spots; the sighting says where it is)
+    local seen = card.sharedSpot
+    if seen then
+        if ns.ClearPointedSpawn then pcall(ns.ClearPointedSpawn) end
+        if ns.ApplyWaypointForSpawn then ns.ApplyWaypointForSpawn(seen, card.pinName, nil, true) end
+        -- opened by the game itself (C_Map.OpenWorldMap); not in combat or with the gamepad
+        if WorldMapFrame and not WorldMapFrame:IsShown() and not ns.IsGamePadUI()
+            and not (InCombatLockdown and InCombatLockdown()) and C_Map and C_Map.OpenWorldMap then
+            pcall(C_Map.OpenWorldMap, seen[2])
+        end
+        RareAlertNotifier.closeCard()
+        return
+    end
+    if not card.entity then return end
     RareAlertNotifier.openEntityOnMap(card.entity, card.spawnIdx)
     RareAlertNotifier.closeCard()
 end
@@ -538,6 +562,7 @@ function RareAlertNotifier.presentAlertCard(unitName, entity, spawnIdx, mapName,
     -- where the target button points the tracking pin: the nearest known spawn
     -- (a sighting shared by another player sets its own spot after this)
     card.pinSpot = entity and spawnIdx and entity.spawns and entity.spawns[spawnIdx] or nil
+    card.sharedSpot = nil
     card.pinName = card.targetName
         or (entity and ns.GetLocalizedEntityName and ns.GetLocalizedEntityName(entity)) or L.rareTitle
     card.heading:SetText(L.rareTitle)
@@ -567,9 +592,95 @@ end
 
 -----------------------------------------------------------------------------
 -- Rares other players of the EzWoW addons saw (Libs/EzWoWShare): a sighting
--- in the player's zone, at most 10 minutes old, shows the same card
+-- in the player's zone, at most 10 minutes old, shows the same card.
+-- Sightings that come in combat, in a dungeon or while the card is up wait
+-- (while they are fresh) and are shown one card after another.
 -----------------------------------------------------------------------------
 local SHARED_MAX_AGE = 600
+local MAX_PENDING = 40
+local pendingShared = {}   -- npc IDs of sightings not shown yet, oldest first
+
+-- combat or a dungeon: the card waits
+local function sharedAlertBlocked()
+    if InCombatLockdown and InCombatLockdown() then return true end
+    if type(IsInInstance) == "function" then
+        local inInstance, instanceType = IsInInstance()
+        if inInstance and instanceType ~= "none" then return true end
+    end
+    return false
+end
+
+-- the record of a waiting sighting while it is still worth a card (fresh,
+-- not shown lately; with mapID: seen on that map)
+local function freshSharedRecord(share, npcId, mapID)
+    local rec = share.GetRare(npcId)
+    if not (rec and rec.shared and type(rec.t) == "number") then return nil end
+    if time() - rec.t > SHARED_MAX_AGE then return nil end
+    if lastAlertAt[npcId] and GetTime() - lastAlertAt[npcId] < REPEAT_COOLDOWN then return nil end
+    if mapID and rec.m ~= mapID then return nil end
+    return rec
+end
+
+function RareAlertNotifier.presentSharedRare(share, npcId, rec, mapID, mapName)
+    lastAlertAt[npcId] = GetTime()
+    local entity = (rareEntityById or RareAlertNotifier.buildRareEntityIndex())[npcId]
+    local name = (entity and ns.GetLocalizedEntityName and ns.GetLocalizedEntityName(entity))
+        or (share.SourceName and share.SourceName("n" .. npcId, ns.activeLocale)) or "?"
+    local spawnIdx = entity and RareAlertNotifier.findNearestSpawnIndex(entity, mapID, rec.x, rec.y)
+    RareAlertNotifier.presentAlertCard(name, entity, spawnIdx, mapName, rec.x, rec.y)
+    local card = RareAlertNotifier.buildAlertCard()
+    card.heading:SetText(L.rareSharedTitle .. " · " .. share.Ago(rec.t))
+    -- the spot where it was seen is closer to it than the nearest spawn
+    if type(rec.x) == "number" and type(rec.y) == "number" and mapID then
+        card.pinSpot = { -1, mapID, rec.x, rec.y }
+        card.sharedSpot = card.pinSpot
+        -- the map button shows that spot even for a rare not in the data
+        card.mapBtn:SetText(L.rareShowMap)
+        card.mapBtn:Show()
+        card.nameText:SetWidth(160)
+        card.placeText:SetWidth(160)
+        -- the target button goes next to the map button now (shown out of combat only)
+        RareAlertNotifier.updateTargetButton()
+    end
+    local db = ns.DB
+    if db and db.rareAlertSound ~= false and PlaySound and SOUNDKIT and SOUNDKIT.RAID_WARNING then
+        pcall(PlaySound, SOUNDKIT.RAID_WARNING)
+    end
+end
+
+-- Shows the next waiting sighting when it can be shown. While blocked they
+-- all wait (old ones go); otherwise the ones for another zone go and the
+-- first of the rest gets the card (the others follow when it closes).
+function RareAlertNotifier.showPendingShared()
+    if #pendingShared == 0 then return end
+    local share = ns.Share
+    local db = ns.DB
+    if not (share and share.GetRare and share.Ago) or not db then return end
+    if db.rareAlert == false then
+        pendingShared = {}
+        return
+    end
+    local blocked = sharedAlertBlocked()
+    local mapID, mapName
+    if not blocked then
+        local _
+        mapID, _, _, mapName = RareAlertNotifier.resolvePlayerLocation()
+        -- no map yet (a loading screen): they wait too
+        if type(mapID) ~= "number" or (issecretvalue and issecretvalue(mapID)) then
+            blocked, mapID = true, nil
+        end
+    end
+    local keep = {}
+    for _, npcId in ipairs(pendingShared) do
+        if freshSharedRecord(share, npcId, (not blocked) and mapID or nil) then keep[#keep + 1] = npcId end
+    end
+    pendingShared = keep
+    if blocked or #keep == 0 then return end
+    if alertCard and alertCard:IsShown() then return end
+    local npcId = table.remove(pendingShared, 1)
+    local rec = freshSharedRecord(share, npcId, mapID)
+    if rec then RareAlertNotifier.presentSharedRare(share, npcId, rec, mapID, mapName) end
+end
 
 function RareAlertNotifier.onSharedRecords(kinds)
     if type(kinds) ~= "table" or not kinds.rare then return end
@@ -577,38 +688,34 @@ function RareAlertNotifier.onSharedRecords(kinds)
     if not (share and share.TakeNewRares) then return end
     local list = share.TakeNewRares()
     local db = ns.DB
-    if not db or db.rareAlert == false or (InCombatLockdown and InCombatLockdown()) then return end
-    local inInstance, instanceType = IsInInstance()
-    if inInstance and instanceType ~= "none" then return end
-    local mapID, _, _, mapName = RareAlertNotifier.resolvePlayerLocation()
-    for _, npcId in ipairs(list) do
-        local rec = share.GetRare(npcId)
-        local age = rec and (time() - (rec.t or 0))
-        if rec and rec.shared and rec.m == mapID and age and age <= SHARED_MAX_AGE
-            and not (lastAlertAt[npcId] and GetTime() - lastAlertAt[npcId] < REPEAT_COOLDOWN) then
-            lastAlertAt[npcId] = GetTime()
-            local entity = (rareEntityById or RareAlertNotifier.buildRareEntityIndex())[npcId]
-            local name = (entity and ns.GetLocalizedEntityName and ns.GetLocalizedEntityName(entity))
-                or share.SourceName("n" .. npcId, ns.activeLocale) or "?"
-            local spawnIdx = entity and RareAlertNotifier.findNearestSpawnIndex(entity, mapID, rec.x, rec.y)
-            RareAlertNotifier.presentAlertCard(name, entity, spawnIdx, mapName, rec.x, rec.y)
-            local card = RareAlertNotifier.buildAlertCard()
-            card.heading:SetText(L.rareSharedTitle .. " · " .. share.Ago(rec.t))
-            -- the spot where it was seen is closer to it than the nearest spawn
-            if type(rec.x) == "number" and type(rec.y) == "number" and mapID then
-                card.pinSpot = { -1, mapID, rec.x, rec.y }
-            end
-            if db.rareAlertSound ~= false and PlaySound and SOUNDKIT and SOUNDKIT.RAID_WARNING then
-                pcall(PlaySound, SOUNDKIT.RAID_WARNING)
-            end
-            break
+    if not db or db.rareAlert == false then return end
+    for _, npcId in ipairs(type(list) == "table" and list or {}) do
+        local listed = false
+        for _, id in ipairs(pendingShared) do
+            if id == npcId then listed = true break end
+        end
+        if not listed and type(npcId) == "number" then
+            if #pendingShared >= MAX_PENDING then table.remove(pendingShared, 1) end
+            pendingShared[#pendingShared + 1] = npcId
         end
     end
+    pcall(RareAlertNotifier.showPendingShared)
 end
 
 if ns.Share and ns.Share.RegisterCallback then
     ns.Share.RegisterCallback("EzWoW-MapFinder", function(kinds) RareAlertNotifier.onSharedRecords(kinds) end)
 end
+
+-- out of combat, out of a dungeon, in a new zone: waiting sightings are looked at again
+local pendingWatcher = CreateFrame("Frame")
+for _, event in ipairs({ "PLAYER_REGEN_ENABLED", "PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA" }) do
+    pcall(pendingWatcher.RegisterEvent, pendingWatcher, event)
+end
+pendingWatcher:SetScript("OnEvent", function()
+    if #pendingShared == 0 or not (C_Timer and C_Timer.After) then return end
+    -- a moment later: the map position is known again after a loading screen
+    C_Timer.After(2, function() pcall(RareAlertNotifier.showPendingShared) end)
+end)
 
 -----------------------------------------------------------------------------
 -- Detection

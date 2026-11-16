@@ -19,6 +19,8 @@
 -- "npcID,continent,x,y,flags"; flags 0 = monster) and shipped with the addon
 -- (Database/ShareSeed.lua, "npcs"). An NPC the data lacks gets an entry of
 -- its own (its name comes from the name tables by ID).
+-- A spot put in from other EzWoW users (shipped, received, or their gathering
+-- and sightings) carries shared = true, for the tooltips.
 local _, ns = ...
 
 local KIND = "N"
@@ -117,14 +119,17 @@ local function entryFor(npcID, flags)
     return entry
 end
 
-local function copySpot(sp)
-    return { tonumber(sp[1]), tonumber(sp[2]), tonumber(sp[3]), 0 }
+local function copySpot(sp, fromOthers)
+    local copy = { tonumber(sp[1]), tonumber(sp[2]), tonumber(sp[3]), 0 }
+    if fromOthers then copy.shared = true end
+    return copy
 end
 
 -----------------------------------------------------------------------------
 -- What is shown
 -----------------------------------------------------------------------------
--- spots learned for one ID: { latest = spot (NPC), mobs = { spots } }
+-- spots learned for one ID: { latest = spot (NPC), mobs = { spots },
+-- fromOthers = { [spot] = true } (the ones other EzWoW users found) }
 local learned = {}
 
 -- the entry's spawns again from the data's spots and the learned ones
@@ -134,14 +139,15 @@ local function rebuild(npcID)
     local entry = entryFor(npcID, info.flags)
     if not entry then return end
     local base = dataSpots(entry)
+    local others = info.fromOthers or {}
     local list = {}
     if info.mob then
         for _, sp in ipairs(base) do list[#list + 1] = sp end
         for _, sp in ipairs(info.mobs or {}) do
-            if not nearAny(list, sp, MOB_GAP) then list[#list + 1] = copySpot(sp) end
+            if not nearAny(list, sp, MOB_GAP) then list[#list + 1] = copySpot(sp, others[sp]) end
         end
     elseif info.latest then
-        list[1] = copySpot(info.latest)
+        list[1] = copySpot(info.latest, others[info.latest])
         -- one NPC in many places (guards, vendors of a kind): the others stay
         if #base > 1 then
             for _, sp in ipairs(base) do
@@ -154,17 +160,24 @@ local function rebuild(npcID)
     entry.spawns = list
 end
 
-local function learnLatest(npcID, spot, flags)
+local function markOthers(info, spot, fromOthers)
+    if not fromOthers then return end
+    info.fromOthers = info.fromOthers or {}
+    info.fromOthers[spot] = true
+end
+
+local function learnLatest(npcID, spot, flags, fromOthers)
     if not (type(npcID) == "number" and validSpot(spot)) then return end
     local info = learned[npcID] or {}
     learned[npcID] = info
     if info.mob then return end
     info.latest = spot
+    markOthers(info, spot, fromOthers)
     info.flags = info.flags or flags
     rebuild(npcID)
 end
 
-local function learnMob(npcID, spot)
+local function learnMob(npcID, spot, fromOthers)
     if not (type(npcID) == "number" and validSpot(spot)) then return end
     local info = learned[npcID] or {}
     learned[npcID] = info
@@ -172,29 +185,52 @@ local function learnMob(npcID, spot)
     info.flags = 0
     info.latest = nil
     info.mobs = info.mobs or {}
-    if nearAny(info.mobs, spot, MOB_GAP) then return end
+    for _, known in ipairs(info.mobs) do
+        if near(known, spot, MOB_GAP) then
+            -- this character was there too: no longer only other users' spot
+            if not fromOthers and info.fromOthers and info.fromOthers[known] then
+                info.fromOthers[known] = nil
+                rebuild(npcID)
+            end
+            return
+        end
+    end
     info.mobs[#info.mobs + 1] = spot
+    markOthers(info, spot, fromOthers)
     rebuild(npcID)
 end
 
 -- objects: spots added to the data's (objects the data lacks are left out:
 -- their names are not known here)
+-- learnedObjects[objectID] = { { continent, x, y, others = true|nil }, ... }
 local learnedObjects = {}
 
-local function learnObject(objectID, spot)
-    if not (type(objectID) == "number" and validSpot(spot)) then return end
+-- fromOthers: gathered by another EzWoW user (received or shipped); a spot
+-- this character gathered at too loses that mark, as in the shared records.
+-- true when the object's spots changed
+local function learnObject(objectID, spot, fromOthers)
+    if not (type(objectID) == "number" and validSpot(spot)) then return false end
     local entry = objectIndex()[objectID]
-    if not entry then return end
+    if not entry then return false end
     local base = dataSpots(entry)
-    if nearAny(base, spot, OBJ_GAP) then return end
+    if nearAny(base, spot, OBJ_GAP) then return false end
     local list = learnedObjects[objectID] or {}
     learnedObjects[objectID] = list
-    if nearAny(list, spot, OBJ_GAP) then return end
-    list[#list + 1] = spot
+    local known
+    for _, sp in ipairs(list) do
+        if near(sp, spot, OBJ_GAP) then known = sp break end
+    end
+    if known then
+        if fromOthers or not known.others then return false end
+        known.others = nil
+    else
+        list[#list + 1] = { tonumber(spot[1]), tonumber(spot[2]), tonumber(spot[3]), others = fromOthers or nil }
+    end
     local spawns = {}
     for _, sp in ipairs(base) do spawns[#spawns + 1] = sp end
-    for _, sp in ipairs(list) do spawns[#spawns + 1] = copySpot(sp) end
+    for _, sp in ipairs(list) do spawns[#spawns + 1] = copySpot(sp, sp.others) end
     entry.spawns = spawns
+    return true
 end
 
 function NpcSpots.ApplyGather()
@@ -202,17 +238,25 @@ function NpcSpots.ApplyGather()
     if not s then return end
     local okData, data = pcall(s.Data)
     local gather = okData and type(data) == "table" and data.gather
+    local any = false
+    -- (the library marks the spots received from others with shared = true)
     for objectID, spots in pairs(type(gather) == "table" and gather or {}) do
         if type(objectID) == "number" and type(spots) == "table" then
-            for _, sp in ipairs(spots) do learnObject(objectID, sp) end
+            for _, sp in ipairs(spots) do
+                if learnObject(objectID, sp, type(sp) == "table" and sp.shared == true) then any = true end
+            end
         end
     end
     local seed = type(s.Seed) == "function" and s.Seed("gather")
     for objectID, spots in pairs(type(seed) == "table" and seed or {}) do
         if type(objectID) == "number" and type(spots) == "table" then
-            for _, sp in ipairs(spots) do learnObject(objectID, sp) end
+            for _, sp in ipairs(spots) do
+                if learnObject(objectID, sp, true) then any = true end
+            end
         end
     end
+    -- the herb and ore marks are made again from the new spots
+    if any and ns.GatherPins and type(ns.GatherPins.forget) == "function" then ns.GatherPins.forget() end
 end
 
 -- confirmed spots of other players (newest first)
@@ -256,6 +300,8 @@ function NpcSpots.ApplyRares()
             if not (row.own and not row.mob) then
                 row.seen = type(row.seen) == "table" and row.seen or {}
                 if not nearAny(row.seen, spot, MOB_GAP) and #row.seen < MAX_RARE_SEEN then
+                    -- seen by another EzWoW user (not by this character)
+                    if r.shared then spot.shared = true end
                     row.seen[#row.seen + 1] = spot
                 end
                 row.mob = true
@@ -267,7 +313,9 @@ function NpcSpots.ApplyRares()
     for key, row in pairs(t) do
         local npcID = tonumber(key)
         if npcID and type(row) == "table" and row.mob then
-            for _, sp in ipairs(type(row.seen) == "table" and row.seen or {}) do learnMob(npcID, sp) end
+            for _, sp in ipairs(type(row.seen) == "table" and row.seen or {}) do
+                learnMob(npcID, sp, type(sp) == "table" and sp.shared == true)
+            end
         end
     end
 end
@@ -280,7 +328,7 @@ function NpcSpots.ApplyAll()
         if type(npcID) == "number" and type(rec) == "table" then
             for _, sp in ipairs(rec) do
                 if validSpot(sp) then
-                    if tonumber(sp[4]) == 0 then learnMob(npcID, sp) else learnLatest(npcID, sp, sp[4]) end
+                    if tonumber(sp[4]) == 0 then learnMob(npcID, sp, true) else learnLatest(npcID, sp, sp[4], true) end
                 end
             end
         end
@@ -290,14 +338,42 @@ function NpcSpots.ApplyAll()
         if npcID and type(row) == "table" then
             local peers = confirmedPeers(row)
             if row.mob then
-                for _, sp in ipairs(peers) do learnMob(npcID, sp) end
+                for _, sp in ipairs(peers) do learnMob(npcID, sp, true) end
                 for _, sp in ipairs(type(row.spots) == "table" and row.spots or {}) do learnMob(npcID, sp) end
             else
-                for i = #peers, 1, -1 do learnLatest(npcID, peers[i], row.flags) end
+                for i = #peers, 1, -1 do learnLatest(npcID, peers[i], row.flags, true) end
                 if validSpot(row.own) then learnLatest(npcID, row.own, row.flags) end
             end
         end
     end
+end
+
+-- spots received from others that are in use now: confirmed ones shown on
+-- the map (a monster's next to the data's spots, an NPC's while it is the
+-- spot shown for it)
+function NpcSpots.UsedPeers()
+    local n = 0
+    for key, row in pairs(store() or {}) do
+        local npcID = tonumber(key)
+        local info = npcID and learned[npcID]
+        if info and type(row) == "table" and type(row.peers) == "table" then
+            local entry = npcIndex()[npcID]
+            for _, sp in ipairs(row.peers) do
+                if type(sp) == "table" and sp.ok and entry then
+                    if info.mob then
+                        local inUse = false
+                        for _, m in ipairs(info.mobs or {}) do
+                            if m == sp then inUse = true break end
+                        end
+                        if inUse and not nearAny(dataSpots(entry), sp, MOB_GAP) then n = n + 1 end
+                    elseif info.latest == sp then
+                        n = n + 1
+                    end
+                end
+            end
+        end
+    end
+    return n
 end
 
 -----------------------------------------------------------------------------
@@ -477,13 +553,17 @@ if s and type(s.RegisterKind) == "function" then
             local maxSpots = mob and MAX_MOB_SPOTS or MAX_PEER_SPOTS
             if not found then
                 if #row.peers >= maxSpots then
-                    -- an NPC: the oldest unconfirmed report makes room for a new one
-                    if mob then return false end
+                    -- the oldest unconfirmed report makes room for a new one; with
+                    -- none, an NPC lets its oldest spot go, a monster keeps its own
+                    -- (they are all shown) and the new report is not taken
                     local drop
                     for i = #row.peers, 1, -1 do
-                        if not row.peers[i].ok then drop = i break end
+                        if type(row.peers[i]) ~= "table" or not row.peers[i].ok then drop = i break end
                     end
-                    if not drop then drop = #row.peers end
+                    if not drop then
+                        if mob then return false end
+                        drop = #row.peers
+                    end
                     table.remove(row.peers, drop)
                 end
                 found = { c, x, y, by = {}, n = 0 }
@@ -498,15 +578,20 @@ if s and type(s.RegisterKind) == "function" then
             if not found.ok and found.n >= (tonumber(needed) or 2) then
                 found.ok = true
                 if mob then
-                    learnMob(npcID, found)
+                    learnMob(npcID, found, true)
                 elseif not validSpot(row.own) then
                     -- this character's own (newer to it) stays in front
-                    learnLatest(npcID, found, row.flags)
+                    learnLatest(npcID, found, row.flags, true)
                 end
             end
             -- "wait": kept until enough players sent that spot; false: in use already
             if not found.ok then return "wait" end
             return not wasOk
+        end,
+        -- for the shared records window: received spots in use now
+        used = function()
+            local ok, n = pcall(NpcSpots.UsedPeers)
+            return ok and n or 0
         end,
     })
 end

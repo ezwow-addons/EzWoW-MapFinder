@@ -2,13 +2,14 @@
 -- EzWoW - Map Finder
 -- Core/SharedData.lua : search data from EzWoW - Data when it is installed
 --===========================================================================
--- EzWoW - Data is optional. When it is installed, enabled and its tables have
--- the shape this addon reads (formatVersion 2), the search data comes from it;
--- otherwise the built-in Database files are used exactly as before.
+-- EzWoW - Data is optional. The built-in Database files come with every
+-- release of this addon, so they are never older than EzWoW - Data: they are
+-- used whenever they are there, and EzWoW - Data (formatVersion 2) only stands
+-- in for built-in tables that are missing or empty.
 --
--- The built-in Database files always load (they are the fallback). With the
--- shared data, three small hook files swap their tables while this addon
--- loads, before anything reads them:
+-- The built-in Database files always load. When they are missing, three small
+-- hook files swap in the shared tables while this addon loads, before anything
+-- reads them:
 --   Database\SharedEntries.lua (after Locations_*)  entries rebuilt from the
 --       shared spots (Spawns) and English names (Names-enUS), in the built-in
 --       order (item, npc, object, quest; ids ascending). ForeverOverrides,
@@ -101,6 +102,8 @@ end
 -- After Database\Locations_*: decide, then rebuild the entries
 -----------------------------------------------------------------------------
 function Shared.AfterLocations()
+    -- the built-in spots and names are there: they are the newer ones
+    if type(_G.EzWoWMapFinderData) == "table" and #_G.EzWoWMapFinderData > 0 then return end
     local D = api()
     if not D then return end
     local spawns = loadModule(D, "Spawns")
@@ -219,11 +222,26 @@ end
 function Shared.AfterQuests()
     local m = Shared.quests
     Shared.quests = nil
-    if not (Shared.active and m) then return end
     local builtIn = _G.EzWoWMapFinderQuestData
+    -- a shared table only stands in for a built-in one that is missing or empty
+    local function hasBuiltIn(key)
+        return type(builtIn) == "table" and type(builtIn[key]) == "table" and next(builtIn[key]) ~= nil
+    end
+    local missing = false
+    for _, key in ipairs(QUEST_TABLES) do
+        if not hasBuiltIn(key) then missing = true break end
+    end
+    if not missing then return end
+    if not m and not inCombat() then
+        local D = api()
+        if D then m = loadModule(D, "QuestMap") end
+    end
+    if type(m) ~= "table" then return end
     local t = {}
     for _, key in ipairs(QUEST_TABLES) do
-        if type(m[key]) == "table" then
+        if hasBuiltIn(key) then
+            t[key] = builtIn[key]
+        elseif type(m[key]) == "table" then
             t[key] = m[key]
         elseif type(builtIn) == "table" then
             t[key] = builtIn[key]

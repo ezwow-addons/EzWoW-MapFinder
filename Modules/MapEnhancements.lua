@@ -212,6 +212,19 @@ function WorldMapCanvasEnhancer.installMapFogRevealHooks()
     end)
 end
 
+-- The hovered mark comes to the front of marks that overlap it (its label
+-- too), and goes back to its own level when the mouse leaves.
+function WorldMapCanvasEnhancer.raisePin(pin)
+    if pin.ezBaseLevel == nil then pin.ezBaseLevel = pin:GetFrameLevel() end
+    pin:SetFrameLevel(pin.ezBaseLevel + 500)
+end
+function WorldMapCanvasEnhancer.lowerPin(pin)
+    if pin.ezBaseLevel ~= nil then
+        pin:SetFrameLevel(pin.ezBaseLevel)
+        pin.ezBaseLevel = nil
+    end
+end
+
 local mapCoordsFrame
 function WorldMapCanvasEnhancer.refreshMapCoordsVisibility()
     if not mapCoordsFrame then return end
@@ -228,7 +241,54 @@ function WorldMapCanvasEnhancer.initializeMapCoordOverlay()
     local windowFrame = CreateFrame("Frame", "EzWoWMapFinderCoordsFrame", parentFrame, BackdropTemplateMixin and "BackdropTemplate" or nil)
     windowFrame:SetSize(250, 20)
     local scrollFrame = WorldMapFrame.ScrollContainer or WorldMapFrame
-    windowFrame:SetPoint("BOTTOM", scrollFrame, "BOTTOM", 0, 8)
+    -- where it sits: the default (bottom middle of the map), or where it was
+    -- dragged to, kept as a share of the map's width and height so it stays in
+    -- place when the map is made bigger or smaller (ns.DB.coordsSpot = { x, y })
+    local placedW, placedH
+    local function place()
+        local spot = ns.DB and ns.DB.coordsSpot
+        local w, h = scrollFrame:GetWidth(), scrollFrame:GetHeight()
+        placedW, placedH = w, h
+        windowFrame:ClearAllPoints()
+        if type(spot) == "table" and tonumber(spot[1]) and tonumber(spot[2]) and w and h and w > 0 and h > 0 then
+            local fx = math.min(1, math.max(0, tonumber(spot[1])))
+            local fy = math.min(1, math.max(0, tonumber(spot[2])))
+            windowFrame:SetPoint("CENTER", scrollFrame, "BOTTOMLEFT", fx * w, fy * h)
+        else
+            windowFrame:SetPoint("BOTTOM", scrollFrame, "BOTTOM", 0, 8)
+        end
+    end
+    place()
+    windowFrame:SetMovable(true)
+    windowFrame:SetClampedToScreen(true)
+    windowFrame:EnableMouse(true)
+    windowFrame:RegisterForDrag("LeftButton")
+    windowFrame:SetScript("OnDragStart", function(self) self.isDragged = true; self:StartMoving() end)
+    windowFrame:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+        self.isDragged = nil
+        local cx, cy = self:GetCenter()
+        local left, bottom = scrollFrame:GetLeft(), scrollFrame:GetBottom()
+        local w, h = scrollFrame:GetWidth(), scrollFrame:GetHeight()
+        if cx and cy and left and bottom and w and h and w > 0 and h > 0 and ns.DB then
+            -- both sit in the map window: turned into the map's scale first
+            local scale = (self:GetEffectiveScale() or 1) / (scrollFrame:GetEffectiveScale() or 1)
+            ns.DB.coordsSpot = { (cx * scale - left) / w, (cy * scale - bottom) / h }
+        end
+        place()
+    end)
+    windowFrame:SetScript("OnMouseUp", function(_, button)
+        if button == "RightButton" and ns.DB then
+            ns.DB.coordsSpot = nil
+            place()
+        end
+    end)
+    windowFrame:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(L.coordsMoveTip or "Drag to move · Right-click: back to the default place", 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    windowFrame:SetScript("OnLeave", function() GameTooltip:Hide() end)
     windowFrame:SetFrameStrata("HIGH")
     windowFrame:SetFrameLevel((parentFrame:GetFrameLevel() or 10) + 50)
     if windowFrame.SetBackdrop then
@@ -246,6 +306,8 @@ function WorldMapCanvasEnhancer.initializeMapCoordOverlay()
         if elapsedAcc < 0.05 then return end
         elapsedAcc = 0
         if not WorldMapFrame:IsShown() then return end
+        -- the map was made bigger or smaller: the same place on it again
+        if not self.isDragged and (scrollFrame:GetWidth() ~= placedW or scrollFrame:GetHeight() ~= placedH) then place() end
 
         local uiMapID = WorldMapFrame.GetMapID and WorldMapFrame:GetMapID()
         local pStr = "--, --"
@@ -621,6 +683,8 @@ function WorldMapCanvasEnhancer.obtainTransitPin(entryIndex)
         if _G.EzWoWTooltipTagSizer and _G.EzWoWTooltipTagSizer.Refit then pcall(_G.EzWoWTooltipTagSizer.Refit, GameTooltip) end
     end)
     pin:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    pin:HookScript("OnEnter", WorldMapCanvasEnhancer.raisePin)
+    pin:HookScript("OnLeave", WorldMapCanvasEnhancer.lowerPin)
     pin:SetScript("OnMouseDown", function(self, button)
         if button ~= "LeftButton" then return end
         local apiInfo = self.info
