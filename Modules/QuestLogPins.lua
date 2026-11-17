@@ -6,6 +6,15 @@
 -- (from the built-in quest locations). Quests still in progress
 -- can be shown too (grey "?", option). Clicking a mark sets a map waypoint.
 local _, ns = ...
+-- every EzWoW mark on the maps can be turned off at once, and the marks only
+-- the shared records make apart (Libs/EzWoWShare MapMarksOn / SharedMarksOn)
+local function ezMapOn(sharedOnly)
+    local share = _G.EzWoW_Share
+    local fn = type(share) == "table" and share[sharedOnly and "SharedMarksOn" or "MapMarksOn"]
+    if type(fn) ~= "function" then return true end
+    local ok, on = pcall(fn)
+    return not ok or on ~= false
+end
 -- frames made on the World Map are made without a parent and put in after
 -- (Libs/EzWoWGamePad MakeFrame: keeps the game's gamepad cursor untainted)
 local CreateFrame = (ns.GamePad and ns.GamePad.MakeFrame) or CreateFrame
@@ -482,7 +491,7 @@ function QuestLogPins.refresh()
     QuestLogPins.hideAll()
     -- EzWoW - Quest draws these marks when it is loaded
     if ns.IsQuestAddonActive and ns.IsQuestAddonActive() then return end
-    if not (ns.DB and ns.DB.questLogPins ~= false) then return end
+    if not (ns.DB and ns.DB.questLogPins ~= false) or not ezMapOn() then return end
     if not (WorldMapFrame and WorldMapFrame:IsShown()) then return end
     local project = ns.ProjectSpawnToWorldMapCoords
     if not project then return end

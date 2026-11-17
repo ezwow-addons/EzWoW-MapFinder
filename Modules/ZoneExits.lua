@@ -26,6 +26,15 @@
 -- land = true once someone sent it as crossed on land, water = true once
 -- someone sent it as swum)
 local _, ns = ...
+-- every EzWoW mark on the maps can be turned off at once, and the marks only
+-- the shared records make apart (Libs/EzWoWShare MapMarksOn / SharedMarksOn)
+local function ezMapOn(sharedOnly)
+    local share = _G.EzWoW_Share
+    local fn = type(share) == "table" and share[sharedOnly and "SharedMarksOn" or "MapMarksOn"]
+    if type(fn) ~= "function" then return true end
+    local ok, on = pcall(fn)
+    return not ok or on ~= false
+end
 
 local KIND = "X"
 local SAMPLE = 0.5        -- seconds between position samples
@@ -183,7 +192,8 @@ end
 
 -- the exits on one zone map: { { x, y (percent of the map), dest = other zone, dir }, ... }
 function ZoneExits.ForMap(mapID)
-    if not isZoneMap(mapID) then return {} end
+    -- (every exit comes from the shared records: none while those marks are off)
+    if not ezMapOn(true) or not isZoneMap(mapID) then return {} end
     local cached = forMapCache[mapID]
     if cached then return cached end
     local list, kept = {}, {}

@@ -8,6 +8,15 @@
 -- dots, one colour per quest. The game's own quest position for the shown
 -- map gets a larger ring marker. The minimap shows the dots near the player.
 local _, ns = ...
+-- every EzWoW mark on the maps can be turned off at once, and the marks only
+-- the shared records make apart (Libs/EzWoWShare MapMarksOn / SharedMarksOn)
+local function ezMapOn(sharedOnly)
+    local share = _G.EzWoW_Share
+    local fn = type(share) == "table" and share[sharedOnly and "SharedMarksOn" or "MapMarksOn"]
+    if type(fn) ~= "function" then return true end
+    local ok, on = pcall(fn)
+    return not ok or on ~= false
+end
 -- frames made on the World Map are made without a parent and put in after
 -- (Libs/EzWoWGamePad MakeFrame: keeps the game's gamepad cursor untainted)
 local CreateFrame = (ns.GamePad and ns.GamePad.MakeFrame) or CreateFrame
@@ -1307,7 +1316,7 @@ end
 
 function QuestObjectivePins.refreshWorld()
     QuestObjectivePins.hideWorld()
-    if not enabled() or #quests == 0 then return end
+    if not enabled() or #quests == 0 or not ezMapOn() then return end
     if not (WorldMapFrame and WorldMapFrame:IsShown()) then return end
     local project = ns.ProjectSpawnToWorldMapCoords
     local mapID = WorldMapFrame.GetMapID and WorldMapFrame:GetMapID()
@@ -1499,7 +1508,7 @@ local function playerMapPosition(mapID)
 end
 
 function QuestObjectivePins.updateMinimap()
-    if not (Minimap and miniMapID and #miniPoints > 0 and enabled()) then hideMinimap() return end
+    if not (Minimap and miniMapID and #miniPoints > 0 and enabled() and ezMapOn()) then hideMinimap() return end
     local px, py = playerMapPosition(miniMapID)
     local radius = minimapRadiusYards()
     local okSize, mapW, mapH = false, nil, nil

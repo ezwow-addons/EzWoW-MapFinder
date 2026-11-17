@@ -3,6 +3,15 @@
 -- Modules/MapEnhancements.lua : Fog-of-War Reveal, Cursor Coords, Zoom Extender & Transit Pins
 --===========================================================================
 local _, ns = ...
+-- every EzWoW mark on the maps can be turned off at once, and the marks only
+-- the shared records make apart (Libs/EzWoWShare MapMarksOn / SharedMarksOn)
+local function ezMapOn(sharedOnly)
+    local share = _G.EzWoW_Share
+    local fn = type(share) == "table" and share[sharedOnly and "SharedMarksOn" or "MapMarksOn"]
+    if type(fn) ~= "function" then return true end
+    local ok, on = pcall(fn)
+    return not ok or on ~= false
+end
 -- frames made on the World Map are made without a parent and put in after
 -- (Libs/EzWoWGamePad MakeFrame: keeps the game's gamepad cursor untainted)
 local CreateFrame = (ns.GamePad and ns.GamePad.MakeFrame) or CreateFrame
@@ -860,7 +869,7 @@ function WorldMapCanvasEnhancer.renderWorldTransitMarkers()
         transitPins[index]:Hide()
     end
     activeTransitCount = 0
-    if not (ns.DB and ns.DB.showTransit ~= false) then return end
+    if not (ns.DB and ns.DB.showTransit ~= false) or not ezMapOn() then return end
     if not (WorldMapFrame and WorldMapFrame:IsShown()) then return end
     local uiMapID = WorldMapFrame.GetMapID and WorldMapFrame:GetMapID()
     local itemList = uiMapID and WorldMapCanvasEnhancer.collectTransitForMap(uiMapID)
@@ -911,3 +920,16 @@ ns.GetMapBackdropTexture = WorldMapCanvasEnhancer.getMapBackdropTexture
 ns.AcquireTransitPin = WorldMapCanvasEnhancer.obtainTransitPin
 ns.RefreshTransitPins = WorldMapCanvasEnhancer.renderWorldTransitMarkers
 ns.RescaleTransitPins = WorldMapCanvasEnhancer.rescaleTransitPins
+
+-- the EzWoW map marks turned on or off (Libs/EzWoWShare settings window)
+do
+    local share = _G.EzWoW_Share
+    if type(share) == "table" and type(share.RegisterCallback) == "function" then
+        share.RegisterCallback("EzWoW-MapFinder-Marks", function(kinds)
+            if type(kinds) ~= "table" or not kinds.mapMarks then return end
+            for _, fn in ipairs({ ns.RefreshTransitPins, ns.RefreshServiceNpcPins, ns.RefreshQuestLogPins, ns.RefreshQuestObjectivePins }) do
+                if type(fn) == "function" then pcall(fn) end
+            end
+        end)
+    end
+end

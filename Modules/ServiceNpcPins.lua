@@ -8,6 +8,15 @@
 -- NPCs are sorted into types once from their game flags and titles; each map
 -- gets its own list the first time it is opened.
 local _, ns = ...
+-- every EzWoW mark on the maps can be turned off at once, and the marks only
+-- the shared records make apart (Libs/EzWoWShare MapMarksOn / SharedMarksOn)
+local function ezMapOn(sharedOnly)
+    local share = _G.EzWoW_Share
+    local fn = type(share) == "table" and share[sharedOnly and "SharedMarksOn" or "MapMarksOn"]
+    if type(fn) ~= "function" then return true end
+    local ok, on = pcall(fn)
+    return not ok or on ~= false
+end
 -- frames made on the World Map are made without a parent and put in after
 -- (Libs/EzWoWGamePad MakeFrame: keeps the game's gamepad cursor untainted)
 local CreateFrame = (ns.GamePad and ns.GamePad.MakeFrame) or CreateFrame
@@ -587,7 +596,7 @@ end
 
 function ServiceNpcPins.refresh()
     ServiceNpcPins.hideAll()
-    if not (ns.DB and ns.DB.serviceNpcPins ~= false) then return end
+    if not (ns.DB and ns.DB.serviceNpcPins ~= false) or not ezMapOn() then return end
     if not (WorldMapFrame and WorldMapFrame:IsShown()) then return end
     local mapID = WorldMapFrame.GetMapID and WorldMapFrame:GetMapID()
     if not mapID or isSecret(mapID) then return end
@@ -697,7 +706,7 @@ local MINI_OUTDOOR = { [0] = 466 + 2/3, 400, 333 + 1/3, 266 + 2/3, 200, 133 + 1/
 local MINI_INDOOR = { [0] = 300, 240, 180, 120, 80, 50 }
 
 local function gatherOn()
-    return ns.DB and ns.DB.gatherPins ~= false
+    return ns.DB and ns.DB.gatherPins ~= false and ezMapOn()
 end
 
 -- gathering skills of this character: { herb = rank or nil, ore = rank or nil }
@@ -766,6 +775,8 @@ local function buildSpots()
     spotsByContinent = {}
     local herbs, ores = ns.HERB_SKILL_BY_OBJECT or {}, ns.MINE_SKILL_BY_OBJECT or {}
     local entryByID = {}
+    -- (the marks made from shared records turned off: the built-in places only)
+    local sharedOn = ezMapOn(true)
     for _, e in ipairs(_G.EzWoWMapFinderData or {}) do
         if e.kind == "object" and e.id and type(e.spawns) == "table" then
             local kind, need
@@ -773,7 +784,9 @@ local function buildSpots()
             elseif ores[e.id] then kind, need = "ore", ores[e.id] end
             if kind then
                 entryByID[e.id] = entryByID[e.id] or e
-                for _, sp in ipairs(e.spawns) do
+                local spawns = e.spawns
+                if not sharedOn and type(e.dataSpawns) == "table" then spawns = e.dataSpawns end
+                for _, sp in ipairs(spawns) do
                     local continent, x, y = sp[1], sp[2], sp[3]
                     if type(continent) == "number" and continent >= 0 and type(x) == "number" and type(y) == "number" then
                         -- (Modules/NpcSpots.lua puts the gathered places in with
@@ -788,6 +801,7 @@ local function buildSpots()
     -- places other players of the EzWoW addons (and this character) gathered
     -- herbs and ore that the built-in data does not have (Libs/EzWoWShare);
     -- only those others found (received or shipped) are marked
+    if not sharedOn then return end
     local share = ns.Share
     local gather = share and share.Data and share.Data().gather
     if type(gather) ~= "table" then return end
@@ -853,9 +867,10 @@ end
 -- new shared places: rebuilt on the next refresh
 if ns.Share and ns.Share.RegisterCallback then
     ns.Share.RegisterCallback("EzWoW-MapFinder-Gather", function(kinds)
-        if type(kinds) ~= "table" or not kinds.gather then return end
+        if type(kinds) ~= "table" or not (kinds.gather or kinds.mapMarks) then return end
         spotsByContinent = nil
         if WorldMapFrame and WorldMapFrame:IsShown() and GatherPins.refresh then pcall(GatherPins.refresh) end
+        if kinds.mapMarks and GatherPins.updateMinimap then pcall(GatherPins.updateMinimap) end
     end)
 end
 
