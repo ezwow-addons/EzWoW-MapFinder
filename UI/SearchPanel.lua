@@ -234,6 +234,7 @@ function EntityExplorerPanel.acquireBouncingPinButton(idx)
         or (_G.EzWoWWorldMapDock and _G.EzWoWWorldMapDock:GetCanvas())
         or WorldMapFrame
     pinFrame = CreateFrame("Button", nil, canvasFrame)
+    if ns.GamePad and ns.GamePad.MapMark then ns.GamePad.MapMark(pinFrame) end
     pinFrame:SetSize(32, 46)
     pinFrame:SetFrameStrata("HIGH")
     pinFrame:SetFrameLevel((canvasFrame:GetFrameLevel() or 10) + 420)
@@ -1302,13 +1303,20 @@ function EntityExplorerPanel.init()
     })
 
     if WorldMapFrame then
+        -- the map calls its scale hook on every frame in some states (the gamepad
+        -- cursor on the map): the marks are scaled again only when the scale changed
+        local lastScale
         local function onMapChanged()
+            lastScale = nil
             renderActiveEntityMapPins()
             renderWorldTransitMarkers()
             if ns.RefreshQuestLogPins then ns.RefreshQuestLogPins() end
             if ns.RefreshServiceNpcPins then ns.RefreshServiceNpcPins() end
         end
         local function onCanvasScaleChanged()
+            local s = WorldMapFrame.GetCanvasScale and WorldMapFrame:GetCanvasScale()
+            if s and s == lastScale then return end
+            lastScale = s
             EntityExplorerPanel.rescaleBouncingPins()
             if ns.RescaleTransitPins then ns.RescaleTransitPins() end
             if ns.RescaleQuestLogPins then ns.RescaleQuestLogPins() end
@@ -1326,12 +1334,14 @@ function EntityExplorerPanel.init()
             end
         end
         WorldMapFrame:HookScript("OnShow", function()
+            lastScale = nil
             renderActiveEntityMapPins()
             renderWorldTransitMarkers()
             if ns.RefreshQuestLogPins then ns.RefreshQuestLogPins() end
             if ns.RefreshServiceNpcPins then ns.RefreshServiceNpcPins() end
         end)
         WorldMapFrame:HookScript("OnSizeChanged", function()
+            lastScale = nil
             renderActiveEntityMapPins()
             renderWorldTransitMarkers()
             if ns.RefreshQuestLogPins then ns.RefreshQuestLogPins() end

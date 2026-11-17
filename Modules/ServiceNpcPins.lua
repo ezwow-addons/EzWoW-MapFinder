@@ -481,6 +481,7 @@ local function obtainPin(index)
     local pin = pins[index]
     if pin then return pin end
     pin = CreateFrame("Button", nil, canvas())
+    if ns.GamePad and ns.GamePad.MapMark then ns.GamePad.MapMark(pin) end
     pin:EnableMouse(true)
     pin:RegisterForClicks("LeftButtonUp")
     setPropagateClicks(pin, false)
@@ -913,6 +914,7 @@ end
 
 local function newGatherPin(parent)
     local pin = CreateFrame("Frame", nil, parent)
+    if ns.GamePad and ns.GamePad.MapMark then ns.GamePad.MapMark(pin) end
     pin.rim = pin:CreateTexture(nil, "BACKGROUND")
     pin.rim:SetTexture(DISC)
     pin.rim:SetPoint("CENTER")

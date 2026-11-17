@@ -280,6 +280,15 @@ function QuestLogPins.turnInSpotsForQuest(questID)
     return QuestLogPins.spotsFor(entry, questID)
 end
 
+-- name of the NPC (or object) the data has at a turn-in spot
+function QuestLogPins.turnInNameAt(sp)
+    QuestLogPins.buildIndexes()
+    local key = spotKey(sp)
+    local npc = key and npcBySpot and npcBySpot[key]
+    local name = npc and ns.GetLocalizedEntityName and ns.GetLocalizedEntityName(npc)
+    return type(name) == "string" and name ~= "" and name or nil
+end
+
 function QuestLogPins.questEntry(questID)
     QuestLogPins.buildIndexes()
     return questIndex and questIndex[questID] or nil
@@ -410,6 +419,7 @@ function QuestLogPins.obtainPin(index)
     if pin then return pin end
     local canvasFrame = QuestLogPins.canvas()
     pin = CreateFrame("Button", nil, canvasFrame)
+    if ns.GamePad and ns.GamePad.MapMark then ns.GamePad.MapMark(pin) end
     pin:EnableMouse(true)
     pin:RegisterForClicks("LeftButtonUp")
     setPropagateClicks(pin, false)

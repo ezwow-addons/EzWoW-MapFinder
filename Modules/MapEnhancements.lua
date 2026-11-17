@@ -671,6 +671,7 @@ function WorldMapCanvasEnhancer.obtainTransitPin(entryIndex)
         or (_G.EzWoWWorldMapDock and _G.EzWoWWorldMapDock:GetCanvas())
         or WorldMapFrame
     pin = CreateFrame("Button", nil, canvasFrame)
+    if ns.GamePad and ns.GamePad.MapMark then ns.GamePad.MapMark(pin) end
     pin:EnableMouse(true)
     pin:RegisterForClicks("LeftButtonUp")
     if pin.SetMouseClickEnabled then pin:SetMouseClickEnabled(true) end
