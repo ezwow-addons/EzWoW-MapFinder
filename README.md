@@ -48,8 +48,8 @@ WoW Forever (`Interface: 16001`) · `/ezmf`
 | ⑨ | 미탐험 지역 | 가 보지 않은 지역의 안개를 걷고 푸른빛으로 구분합니다(전장 지도 `Shift+M` 포함). |
 | ⑩ | 레어 알림 | 근처에 레어 몬스터가 보이면(이름표 · 마우스오버 · 대상) 카드와 소리로 알려 주고, **지도에서 보기**로 위치를 찍고, **대상 지정** 버튼과 징표 아이콘(해골 등 8가지)으로 바로 대상을 잡거나 징표를 찍습니다(전투가 끝난 뒤 나타남). 대상 지정이나 징표를 누르면 그 자리에 추적 핀과 화살표도 찍습니다. 같은 몬스터는 5분에 한 번, 던전 · 공격대에서는 알리지 않습니다. |
 | ⑪ | 퀘스트 표시 | 목표를 다 채운 퀘스트의 보고 위치(금색 테두리 안의 노란 `?`)와 진행 중인 퀘스트의 목표 위치(퀘스트마다 다른 색 점, 미니맵에도 표시). 누르면 웨이포인트를 찍습니다(한 번 더 누르면 해제). **EzWoW - Quest**가 켜져 있으면 EzWoW - Quest가 맡습니다. |
-| ⑫ | 약초 · 광맥 자리 | 약초채집 · 채광이 있는 캐릭터는 약초(초록 테두리)와 광맥(주황 테두리)이 자랄 수 있는 자리가 지역 지도와 미니맵(가까운 곳)에 나옵니다. 숙련도가 모자란 자리는 흐리게 표시합니다. 가리키면 이름과 필요 숙련도. 자랄 수 있는 자리일 뿐 항상 있지는 않습니다. |
-| - | 마을 NPC 표시 | 도시 지도에 여관주인·은행·비행 조련사·교관·상인·우체통 등을 미니맵 추적 아이콘처럼 표시(직업 교관은 직업 문장, 전문기술 교관은 그 전문기술 아이콘, 직업용품 상인은 가방 아이콘). 가리키면 이름과 칭호, 누르면 웨이포인트(한 번 더 누르면 해제). |
+| ⑫ | 약초 · 광맥 자리 | 약초채집 · 채광이 있는 캐릭터는 약초(초록 테두리)와 광맥(주황 테두리)이 자랄 수 있는 자리가 그 약초·광석의 아이콘으로 지역 지도와 미니맵(가까운 곳)에 나옵니다. 한 자리에 여러 가지가 자라면 지금 캘 수 있는 것 중 가장 높은 것의 아이콘. 숙련도가 모자란 자리는 흐리게 표시합니다. 가리키면 이름과 필요 숙련도. 자랄 수 있는 자리일 뿐 항상 있지는 않습니다. |
+| - | 마을 NPC 표시 | 도시 지도에 여관주인·은행·비행 조련사·교관·상인·우체통 등을 미니맵 추적 아이콘처럼 표시(직업 교관은 직업 문장, 전문기술 교관은 그 전문기술 아이콘, 직업용품 상인은 가방 아이콘). 가리키면 이름과 칭호, 누르면 웨이포인트(한 번 더 누르면 해제). 상대 진영 NPC는 빼고 중립과 내 진영 NPC만 나옵니다. |
 
 #### 접두어 검색
 
@@ -87,7 +87,7 @@ WoW Forever (`Interface: 16001`) · `/ezmf`
 | ⑦ | 진행 중인 퀘스트 목표 위치 표시 (지도·미니맵, 퀘스트마다 다른 색 점) | 켬 |
 | ⑧ | 마을 지도에 주요 NPC 표시 (여관주인·은행원·경매인·비행 조련사·야수 관리인·직업/전문기술 교관·수리·잡화·음식·마법 재료·직업용품 상인·길드·전장 관리인·영혼의 치유사·우체통). 오른쪽 **종류 ▼**로 종류별 켜기/끄기 | 켬 |
 | ⑧ | 일반 지역 지도에도 표시 | 끔 |
-| ⑨ | 미니맵 · 지역 지도에 약초 · 광맥 자리 표시 (약초채집 · 채광이 있는 캐릭터, 숙련도가 모자라면 흐리게) | 켬 |
+| ⑨ | 약초 자리 표시 · 광맥 자리 표시 (한 줄에 나란히 따로 켜고 끔. 미니맵 · 지역 지도, 약초채집 · 채광이 있는 캐릭터, 숙련도가 모자라면 흐리게) | 켬 |
 | ⑨ | 앞에 있는 가장 가까운 약초 · 광맥 위에 아이콘 표시 (게임 기본 상호작용 아이콘, 상자 포함. 끄면 원래 설정으로) | 켬 |
 | ⑨ | 약초 찾기 · 광물 찾기 자동으로 켜기 (접속할 때와 부활한 뒤. 직접 끄면 다음 접속이나 사망 전까지 그대로) | 켬 |
 | ⑩ | 위치 초기화 · 후원하기 | - |
@@ -180,8 +180,8 @@ Map Finder is an offline location search for the World Map: **monsters, rare eli
 | ⑨ | Unexplored areas | Lifts the fog from areas you have not visited and tints them light blue (battlefield map `Shift+M` too). |
 | ⑩ | Rare alert | A card and a sound when a rare monster is nearby (nameplate · mouseover · target); **Show on map** marks it, and the **Target** button and the eight raid mark icons target or mark it at once (they appear out of combat) and set a tracking pin and arrow at its spot. Once per 5 minutes per monster, not in dungeons or raids. |
 | ⑪ | Quest marks | Turn-in spots of finished quests (a yellow `?` in a gold rim) and objective spots of quests in progress (one dot colour per quest, on the minimap too). Click for a waypoint (click again to remove). Handled by **EzWoW - Quest** while it is enabled. |
-| ⑫ | Herb & ore spots | For characters with Herbalism or Mining, the places where herbs (green rim) and ore (orange rim) can grow appear on zone maps and on the minimap (nearby). Spots above your skill are dimmed. Hover for the name and the skill needed. A spot is where a node can grow, not always one that is there now. |
-| - | Town NPCs | Innkeepers, banks, flight masters, trainers, vendors, mailboxes and more on city maps, like the minimap tracking icons (class crests for class trainers, the profession's own icon for profession trainers, a bag for trade supply vendors). Hover for name and title, click for a waypoint (click again to remove). |
+| ⑫ | Herb & ore spots | For characters with Herbalism or Mining, the places where herbs (green rim) and ore (orange rim) can grow appear with that herb's or ore's icon on zone maps and on the minimap (nearby). Where several can grow, the icon is the highest one you can gather. Spots above your skill are dimmed. Hover for the name and the skill needed. A spot is where a node can grow, not always one that is there now. |
+| - | Town NPCs | Innkeepers, banks, flight masters, trainers, vendors, mailboxes and more on city maps, like the minimap tracking icons (class crests for class trainers, the profession's own icon for profession trainers, a bag for trade supply vendors). Hover for name and title, click for a waypoint (click again to remove). Only neutral NPCs and NPCs of your own faction are shown. |
 
 #### Prefix search
 
@@ -219,7 +219,7 @@ Map Finder is an offline location search for the World Map: **monsters, rare eli
 | ⑦ | Show objective spots of quests in progress (map and minimap, one dot colour per quest) | On |
 | ⑧ | Show service NPCs on town maps (innkeepers, bankers, auctioneers, flight & stable masters, class/profession trainers, repair, general goods, food, reagent & trade supply vendors, guild & battle masters, spirit healers, mailboxes). The **Types ▼** button turns each kind on or off | On |
 | ⑧ | Also show them on regular zone maps | Off |
-| ⑨ | Show herb and ore spots on the minimap and zone maps (characters with Herbalism or Mining; dimmed when your skill is too low) | On |
+| ⑨ | Show herb spots · Show ore spots (side by side, each on its own; minimap and zone maps, characters with Herbalism or Mining; dimmed when your skill is too low) | On |
 | ⑨ | Icon over the nearest herb or vein in front of you (the game's own interact icon, chests too; your own settings come back when turned off) | On |
 | ⑨ | Turn on Find Herbs / Find Minerals automatically (at login and after you come back to life; turning it off by hand is kept until the next login or death) | On |
 | ⑩ | Reset Position · Support | - |

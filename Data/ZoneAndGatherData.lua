@@ -380,6 +380,52 @@ local MINE_SKILL_BY_OBJECT = {
 	[175404] = 275, [177388] = 275,           -- 풍부한 토륨 광맥 (Rich Thorium Vein)
 }
 
+-- the herb / ore item each node gives: item ID -> node object IDs (the item's
+-- icon marks the node on the maps)
+local GATHER_ITEM_BY_OBJECT = {}
+for itemID, objects in pairs({
+	[2447]  = { 1618, 3724 },              -- 평온초
+	[765]   = { 1617, 3725 },              -- 은엽수 잎
+	[2449]  = { 1619, 3726 },              -- 뱀뿌리
+	[785]   = { 1620, 3727 },              -- 마법초
+	[2450]  = { 1621, 3729 },              -- 찔레가시
+	[3820]  = { 2045 },                    -- 갈래물풀
+	[2453]  = { 1622, 3730 },              -- 생채기풀
+	[3355]  = { 1623 },                    -- 야생 철쭉
+	[3369]  = { 1628 },                    -- 무덤이끼
+	[3356]  = { 1624 },                    -- 왕꽃잎풀
+	[3357]  = { 2041 },                    -- 생명의 뿌리
+	[3818]  = { 2042 },                    -- 미명초잎
+	[3821]  = { 2046 },                    -- 황금가시
+	[3358]  = { 2043 },                    -- 카드가의 수염
+	[3819]  = { 2044 },                    -- 겨울서리풀
+	[4625]  = { 2866 },                    -- 화염초
+	[8831]  = { 142140, 180165 },          -- 보라 연꽃
+	[8836]  = { 142141, 176642 },          -- 아서스의 눈물
+	[8838]  = { 142142, 176636, 180164 },  -- 태양풀
+	[8839]  = { 142143 },                  -- 실명초
+	[8845]  = { 142144 },                  -- 유령버섯
+	[8846]  = { 142145, 176637 },          -- 그롬의 피
+	[13464] = { 176583, 176638, 180167 },  -- 황금 산삼
+	[13463] = { 176584, 176639, 180168 },  -- 꿈풀
+	[13465] = { 176586, 176640, 180166 },  -- 은초롱이
+	[13466] = { 176587 },                  -- 역병초
+	[13467] = { 176588 },                  -- 얼음송이
+	[13468] = { 176589 },                  -- 검은 연꽃
+	[2770]  = { 1731, 2055, 103713 },      -- 구리 광석
+	[2771]  = { 1732, 2054, 103711, 1610 }, -- 주석 광석
+	[2775]  = { 1733, 105569, 2653, 73940 }, -- 은 광석
+	[2772]  = { 1735 },                    -- 철 광석
+	[5833]  = { 19903 },                   -- 인듀리움 광석
+	[2776]  = { 1734, 150080, 73941 },     -- 금 광석
+	[3858]  = { 2040, 150079, 123310 },    -- 미스릴 광석
+	[7911]  = { 2047, 150081, 123309 },    -- 진은 광석
+	[11370] = { 165658 },                  -- 검은무쇠 광석
+	[10620] = { 324, 150082, 123848, 180215, 175404, 177388 }, -- 토륨 광석
+}) do
+	for _, objectID in ipairs(objects) do GATHER_ITEM_BY_OBJECT[objectID] = itemID end
+end
+
 local FRIENDLY_SUBNAME_KEYWORDS = {
 	"militia", "night watch", "argent dawn", "explorers' league", "cenarion circle",
 	"thorium brotherhood", "stormpike", "kargath expeditionary", "royal apothecary",
@@ -522,6 +568,7 @@ ns.ZONE_PREFIX_LIST = ZONE_PREFIX_LIST
 ns.ALL_ZONE_KEYS = ALL_ZONE_KEYS
 ns.HERB_SKILL_BY_OBJECT = HERB_SKILL_BY_OBJECT
 ns.MINE_SKILL_BY_OBJECT = MINE_SKILL_BY_OBJECT
+ns.GATHER_ITEM_BY_OBJECT = GATHER_ITEM_BY_OBJECT
 ns.FRIENDLY_SUBNAME_KEYWORDS = FRIENDLY_SUBNAME_KEYWORDS
 ns.BADGE_PREFIX_POOLS = BADGE_PREFIX_POOLS
 ns.ZONE_LEVEL_DATA = ZONE_LEVEL_DATA

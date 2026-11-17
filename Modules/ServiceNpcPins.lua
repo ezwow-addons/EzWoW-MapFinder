@@ -605,12 +605,29 @@ function ServiceNpcPins.refresh()
     local canvasFrame, cw, ch, cScale = canvasMetrics()
     if not canvasFrame then return end
 
+    -- NPCs of the other faction are left off (neutral ones stay): the side
+    -- this character or other players saw, else the shipped table
+    -- (Libs/EzWoWShare IsOtherSide, ShareSeed "sides")
+    local share = ns.Share
+    local isOtherSide = share and type(share.IsOtherSide) == "function" and share.IsOtherSide or nil
+    local otherMemo = {}
+    local function otherSide(entry)
+        if not isOtherSide or entry.kind ~= "npc" then return false end
+        local known = otherMemo[entry]
+        if known == nil then
+            local ok, v = pcall(isOtherSide, entry.id)
+            known = ok and v == true
+            otherMemo[entry] = known
+        end
+        return known
+    end
+
     -- icons of one type closer than MERGE_PIXELS on screen share one icon
     local groups = {}
     local limit = MERGE_PIXELS / cScale
     for _, spot in ipairs(ServiceNpcPins.spotsForMap(mapID)) do
         local svc = spot.svc
-        if typeEnabled(svc.typeKey) then
+        if typeEnabled(svc.typeKey) and not otherSide(svc.entry) then
             local px, py = spot.mx * cw, spot.my * ch
             local group
             for _, g in ipairs(groups) do
@@ -705,8 +722,20 @@ local BUCKET = 250                 -- yards per grid cell for the nearby search
 local MINI_OUTDOOR = { [0] = 466 + 2/3, 400, 333 + 1/3, 266 + 2/3, 200, 133 + 1/3 }
 local MINI_INDOOR = { [0] = 300, 240, 180, 120, 80, 50 }
 
+-- herb spots and ore spots each have a switch (side by side in the options);
+-- before they were split one switch (gatherPins) was for both, so turning
+-- that off keeps both off
+local KIND_SWITCH = { herb = "gatherHerbs", ore = "gatherOre" }
+local function kindOn(kind)
+    local db, key = ns.DB, KIND_SWITCH[kind]
+    if not (db and key) then return false end
+    if db[key] == nil then return db.gatherPins ~= false end
+    return db[key] ~= false
+end
+GatherPins.KindOn = kindOn
+
 local function gatherOn()
-    return ns.DB and ns.DB.gatherPins ~= false and ezMapOn()
+    return ns.DB and (kindOn("herb") or kindOn("ore")) and ezMapOn()
 end
 
 -- gathering skills of this character: { herb = rank or nil, ore = rank or nil }
@@ -879,7 +908,7 @@ end
 
 local function wanted(spot)
     local rank = skills[spot.kind]
-    if not rank then return false end
+    if not rank or not kindOn(spot.kind) then return false end
     return true, rank >= (spot.need or 1)
 end
 
@@ -917,6 +946,29 @@ local function showGatherTooltip(self)
     if _G.EzWoWTooltipTagSizer and _G.EzWoWTooltipTagSizer.Refit then pcall(_G.EzWoWTooltipTagSizer.Refit, GameTooltip) end
 end
 
+-- the icon of the herb / ore item the node gives (Data/ZoneAndGatherData.lua);
+-- the general flower / ore icon when it is not known
+local itemIcons = {}
+local function gatherIcon(spot)
+    local byObject = ns.GATHER_ITEM_BY_OBJECT
+    local itemID = byObject and spot.entry and byObject[spot.entry.id]
+    if itemID then
+        local icon = itemIcons[itemID]
+        if not icon then
+            local fn = (C_Item and C_Item.GetItemIconByID) or (type(GetItemIcon) == "function" and GetItemIcon) or nil
+            if fn then
+                local ok, v = pcall(fn, itemID)
+                if ok and v and not isSecret(v) and (type(v) == "number" or type(v) == "string") then
+                    icon = v
+                    itemIcons[itemID] = v
+                end
+            end
+        end
+        if icon then return icon end
+    end
+    return spot.kind == "herb" and HERB_ICON or ORE_ICON
+end
+
 local function paintGather(pin, spot, size)
     local can = select(2, wanted(spot))
     local c = spot.kind == "herb" and HERB_COLOR or ORE_COLOR
@@ -924,7 +976,7 @@ local function paintGather(pin, spot, size)
     pin.rim:SetSize(size + 2, size + 2)
     pin.rim:SetVertexColor(c[1], c[2], c[3], can and 1 or 0.5)
     pin.icon:SetSize(size - 2, size - 2)
-    pin.icon:SetTexture(spot.kind == "herb" and HERB_ICON or ORE_ICON)
+    pin.icon:SetTexture(gatherIcon(spot))
     pin.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     pin.icon:SetDesaturated(not can)
     pin:SetAlpha(can and 1 or 0.55)
@@ -950,6 +1002,10 @@ local function newGatherPin(parent)
     else
         -- World Map: click = every arrow to this spot, again = away
         setPropagateClicks(pin, false)
+        -- the layer of the other EzWoW marks: in the map's own layer the
+        -- explored-area art of the zone being shown (the game's map pins sit
+        -- at fixed levels far above the canvas) covered the marks on that zone
+        pin:SetFrameStrata("HIGH")
         pin:SetScript("OnMouseUp", function(self, button)
             if button ~= "LeftButton" then return end
             local first = self.spots and self.spots[1]
@@ -972,6 +1028,16 @@ local function newGatherPin(parent)
     pin:HookScript("OnLeave", lowerPin)
     pin:Hide()
     return pin
+end
+
+-- several nodes on one map mark (one place can grow different herbs): the mark
+-- shows the one this character can gather with the most skill, else the easiest
+local function betterSpot(a, b)
+    local _, canA = wanted(a)
+    local _, canB = wanted(b)
+    if canA ~= canB then return canA end
+    if canA then return (a.need or 1) > (b.need or 1) end
+    return (a.need or 1) < (b.need or 1)
 end
 
 -- World map (zone maps): every spot inside the map's bounds
@@ -1006,6 +1072,11 @@ function GatherPins.refresh()
                 local pin = merged[key]
                 if pin then
                     pin.spots[#pin.spots + 1] = spot
+                    if betterSpot(spot, pin.spots[1]) then
+                        pin.spots[#pin.spots] = pin.spots[1]
+                        pin.spots[1] = spot
+                        paintGather(pin, spot, GATHER_MAP_SIZE)
+                    end
                 elseif count < MAX_GATHER_MAP then
                     count = count + 1
                     pin = mapPins[count]
@@ -1041,6 +1112,7 @@ end
 
 -- Minimap: spots near the player, placed by yards from the player
 local miniPins = {}
+local miniSamePlace = {}
 local function hideMini() for _, pin in ipairs(miniPins) do pin:Hide() end end
 
 local function playerWorld()
@@ -1091,6 +1163,9 @@ function GatherPins.updateMinimap()
     local scale = halfW / radius
     local limit = radius * 0.92
     local count = 0
+    -- nodes of one place (within 3 yards) share one mark
+    local samePlace = miniSamePlace
+    for k in pairs(samePlace) do samePlace[k] = nil end
     local cx, cy = math.floor(px / BUCKET), math.floor(py / BUCKET)
     local reach = math.ceil(limit / BUCKET)
     for gx = cx - reach, cx + reach do
@@ -1101,7 +1176,16 @@ function GatherPins.updateMinimap()
                     if count >= MAX_GATHER_MINI then break end
                     -- world x grows to the north, y to the west
                     local north, east = spot.spawn[2] - px, py - spot.spawn[3]
-                    if north * north + east * east <= limit * limit and wanted(spot) then
+                    local placeKey = spot.kind .. ":" .. math.floor(spot.spawn[2] / 3) .. ":" .. math.floor(spot.spawn[3] / 3)
+                    local same = samePlace[placeKey]
+                    if same and north * north + east * east <= limit * limit and wanted(spot) then
+                        same.spots[#same.spots + 1] = spot
+                        if betterSpot(spot, same.spots[1]) then
+                            same.spots[#same.spots] = same.spots[1]
+                            same.spots[1] = spot
+                            paintGather(same, spot, GATHER_MINI_SIZE)
+                        end
+                    elseif north * north + east * east <= limit * limit and wanted(spot) then
                         local ex, ny = east, north
                         if rotate then
                             ex = east * cf + north * sf
@@ -1119,6 +1203,7 @@ function GatherPins.updateMinimap()
                         pin:ClearAllPoints()
                         pin:SetPoint("CENTER", Minimap, "CENTER", ex * scale, ny * scale)
                         pin:Show()
+                        samePlace[placeKey] = pin
                     end
                 end
             end
@@ -1201,7 +1286,9 @@ function GatherPins.autoTrack()
     if not (ns.DB and ns.DB.gatherAutoTrack ~= false) then return end
     if InCombatLockdown and InCombatLockdown() then return end
     if not (C_Minimap and C_Minimap.GetNumTrackingTypes and C_Minimap.GetTrackingInfo and C_Minimap.SetTracking) then return end
-    local spellID = (skills.herb and TRACK_SPELL.herb) or (skills.ore and TRACK_SPELL.ore)
+    -- (both skills: the kind whose spots are shown first)
+    local spellID = (skills.herb and kindOn("herb") and TRACK_SPELL.herb) or (skills.ore and kindOn("ore") and TRACK_SPELL.ore)
+        or (skills.herb and TRACK_SPELL.herb) or (skills.ore and TRACK_SPELL.ore)
     if not spellID then return end
     local spellName = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(spellID)
     local okCount, count = pcall(C_Minimap.GetNumTrackingTypes)

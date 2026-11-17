@@ -41,10 +41,10 @@ An offline location search for the World Map of WoW Forever: monsters, rare elit
 - Objective spots of quests in progress, one dot colour per quest, on the World Map and the minimap.
 
 ### Town NPCs
-- Small icons for innkeepers, bankers, auctioneers, flight and stable masters, class and profession trainers (class crests and profession icons), repair, general goods, food, reagent and trade supply vendors (bag icon), guild and battle masters, spirit healers and mailboxes on city maps. Hover for name and title, click for a waypoint (click again to remove). Pick the kinds in the settings; regular zone maps are optional.
+- Small icons for innkeepers, bankers, auctioneers, flight and stable masters, class and profession trainers (class crests and profession icons), repair, general goods, food, reagent and trade supply vendors (bag icon), guild and battle masters, spirit healers and mailboxes on city maps. Hover for name and title, click for a waypoint (click again to remove). Only neutral NPCs and NPCs of your own faction are shown. Pick the kinds in the settings; regular zone maps are optional.
 
 ### Gathering helpers (Herbalism / Mining)
-- Herb and ore spots on zone maps and the minimap (nearby): green rim for herbs, orange rim for ore, dimmed when your skill is too low. Hover for the name and the skill needed. A spot is where a node can grow, not always one that is there now.
+- Herb and ore spots on zone maps and the minimap (nearby): shown with that herb's or ore's icon, green rim for herbs, orange rim for ore, dimmed when your skill is too low. Hover for the name and the skill needed. A spot is where a node can grow, not always one that is there now.
 - The game's own interact icon over the nearest herb, vein or chest in front of you; your own settings come back when turned off.
 - Find Herbs / Find Minerals switched on at login and after you come back to life.
 - Each helper can be turned off in the settings.
@@ -112,10 +112,10 @@ WoW Forever 월드맵에서 몬스터 · 희귀 몹 · 사냥꾼이 길들일 �
 - 진행 중인 퀘스트의 목표 위치를 퀘스트마다 다른 색 점으로 월드맵과 미니맵에 표시.
 
 ### 마을 NPC 표시
-- 도시 지도에 여관주인·은행원·경매인·비행 조련사·야수 관리인·직업/전문기술 교관(직업 문장·전문기술 아이콘)·수리·잡화·음식·마법 재료·직업용품 상인(가방 아이콘)·길드·전장 관리인·영혼의 치유사·우체통을 작은 아이콘으로 표시합니다. 가리키면 이름과 칭호, 누르면 웨이포인트(한 번 더 누르면 해제). 설정에서 종류를 고르고, 일반 지역 지도 표시는 선택입니다.
+- 도시 지도에 여관주인·은행원·경매인·비행 조련사·야수 관리인·직업/전문기술 교관(직업 문장·전문기술 아이콘)·수리·잡화·음식·마법 재료·직업용품 상인(가방 아이콘)·길드·전장 관리인·영혼의 치유사·우체통을 작은 아이콘으로 표시합니다. 가리키면 이름과 칭호, 누르면 웨이포인트(한 번 더 누르면 해제). 상대 진영 NPC는 빼고 중립과 내 진영 NPC만 나옵니다. 설정에서 종류를 고르고, 일반 지역 지도 표시는 선택입니다.
 
 ### 채집 도우미 (약초채집 · 채광)
-- 약초 · 광맥이 자랄 수 있는 자리를 지역 지도와 미니맵(가까운 곳)에 표시합니다. 약초는 초록, 광맥은 주황 테두리이고 숙련도가 모자라면 흐리게 나옵니다. 가리키면 이름과 필요 숙련도. 자랄 수 있는 자리일 뿐 항상 있지는 않습니다.
+- 약초 · 광맥이 자랄 수 있는 자리를 그 약초 · 광석의 아이콘으로 지역 지도와 미니맵(가까운 곳)에 표시합니다. 약초는 초록, 광맥은 주황 테두리이고 숙련도가 모자라면 흐리게 나옵니다. 가리키면 이름과 필요 숙련도. 자랄 수 있는 자리일 뿐 항상 있지는 않습니다.
 - 앞에 있는 가장 가까운 약초 · 광맥 · 상자 위에 게임 기본 상호작용 아이콘을 띄웁니다. 끄면 원래 설정으로 돌아갑니다.
 - 접속할 때와 부활한 뒤에 약초 찾기 · 광물 찾기를 자동으로 켭니다.
 - 설정에서 하나씩 끌 수 있습니다.

@@ -94,6 +94,16 @@ end
 
 local optionsCanvas
 
+-- herb spots and ore spots: two switches on one row (left / right half)
+local GATHER_COLUMN = 210
+local GATHER_HALF_WIDTH = 160
+-- before the split one switch (gatherPins) was for both (Modules/ServiceNpcPins.lua)
+local function gatherKindOn(key)
+    local v = ns.DB and ns.DB[key]
+    if v == nil then return not (ns.DB and ns.DB.gatherPins == false) end
+    return v ~= false
+end
+
 -- Settings window position, kept like the rare alert card's (falls back to the screen centre).
 function SettingsDialog.saveSettingsPosition(windowFrame)
     if not ns.DB then return end
@@ -401,11 +411,15 @@ function SettingsDialog.buildMapFinderSettingsFrame()
         if ns.RefreshServiceNpcPins then ns.RefreshServiceNpcPins() end
     end)
 
-    -- gathering helpers (herb / ore spots, interact icons, auto tracking)
-    windowFrame.gatherCheck = createCheckOptionRow(-630, "gatherPins", function()
+    -- gathering helpers (herb spots and ore spots side by side, interact icons, auto tracking)
+    local function redrawGatherSpots()
         if ns.RefreshServiceNpcPins then ns.RefreshServiceNpcPins() end
         if ns.GatherPins and ns.GatherPins.updateMinimap then pcall(ns.GatherPins.updateMinimap) end
-    end)
+    end
+    windowFrame.gatherHerbCheck = createCheckOptionRow(-630, "gatherHerbs", redrawGatherSpots)
+    windowFrame.gatherOreCheck = createCheckOptionRow(-630, "gatherOre", redrawGatherSpots)
+    windowFrame.gatherHerbCheck.label:SetWidth(GATHER_HALF_WIDTH)
+    windowFrame.gatherOreCheck.label:SetWidth(GATHER_HALF_WIDTH)
     windowFrame.gatherIconsCheck = createCheckOptionRow(-656, "gatherInteractIcons", function()
         if ns.GatherPins and ns.GatherPins.applyInteractIcons then pcall(ns.GatherPins.applyInteractIcons) end
     end)
@@ -423,8 +437,10 @@ function SettingsDialog.buildMapFinderSettingsFrame()
         windowFrame.serviceCheck:SetPoint("TOPLEFT", 18, y)
         windowFrame.serviceZonesCheck:ClearAllPoints()
         windowFrame.serviceZonesCheck:SetPoint("TOPLEFT", 18, y - 26)
-        windowFrame.gatherCheck:ClearAllPoints()
-        windowFrame.gatherCheck:SetPoint("TOPLEFT", 18, y - 52)
+        windowFrame.gatherHerbCheck:ClearAllPoints()
+        windowFrame.gatherHerbCheck:SetPoint("TOPLEFT", 18, y - 52)
+        windowFrame.gatherOreCheck:ClearAllPoints()
+        windowFrame.gatherOreCheck:SetPoint("TOPLEFT", 18 + GATHER_COLUMN, y - 52)
         windowFrame.gatherIconsCheck:ClearAllPoints()
         windowFrame.gatherIconsCheck:SetPoint("TOPLEFT", 18, y - 78)
         windowFrame.gatherTrackCheck:ClearAllPoints()
@@ -612,9 +628,12 @@ function SettingsDialog.buildMapFinderSettingsFrame()
         self.serviceZonesCheck.label:SetText(L.serviceNpcPinsZones)
         ns.UIKit:FitFontString(self.serviceZonesCheck.label, 380, 1)
         self.serviceZonesCheck:SetChecked(ns.DB.serviceNpcPinsZones == true)
-        self.gatherCheck.label:SetText(L.gatherPins)
-        ns.UIKit:FitFontString(self.gatherCheck.label, 380, 1)
-        self.gatherCheck:SetChecked(ns.DB.gatherPins ~= false)
+        self.gatherHerbCheck.label:SetText(L.gatherHerbs)
+        ns.UIKit:FitFontString(self.gatherHerbCheck.label, GATHER_HALF_WIDTH, 1)
+        self.gatherHerbCheck:SetChecked(gatherKindOn("gatherHerbs"))
+        self.gatherOreCheck.label:SetText(L.gatherOre)
+        ns.UIKit:FitFontString(self.gatherOreCheck.label, GATHER_HALF_WIDTH, 1)
+        self.gatherOreCheck:SetChecked(gatherKindOn("gatherOre"))
         self.gatherIconsCheck.label:SetText(L.gatherInteractIcons)
         ns.UIKit:FitFontString(self.gatherIconsCheck.label, 380, 1)
         self.gatherIconsCheck:SetChecked(ns.DB.gatherInteractIcons ~= false)
