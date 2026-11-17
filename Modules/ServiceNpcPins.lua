@@ -841,11 +841,14 @@ local function buildSpots()
         end
         gather = merged
     end
+    -- nodes that exist only in the new zones count as the same herb / ore in the data
+    local alias = type(ns.GATHER_NODE_ALIAS) == "table" and ns.GATHER_NODE_ALIAS or {}
     for objectID, spots in pairs(gather) do
+        local id = alias[objectID] or objectID
         local kind, need
-        if herbs[objectID] then kind, need = "herb", herbs[objectID]
-        elseif ores[objectID] then kind, need = "ore", ores[objectID] end
-        local e = kind and entryByID[objectID]
+        if herbs[id] then kind, need = "herb", herbs[id]
+        elseif ores[id] then kind, need = "ore", ores[id] end
+        local e = kind and entryByID[id]
         if e and type(spots) == "table" then
             for _, sp in ipairs(spots) do
                 local continent, x, y = sp[1], sp[2], sp[3]

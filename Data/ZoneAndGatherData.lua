@@ -399,6 +399,18 @@ local BADGE_PREFIX_POOLS = {
 	i = "item",
 }
 
+-- herb and ore nodes found only in the new zones: object ID -> the node with
+-- the same herb / ore in the data (its name, skill and marks are used)
+local GATHER_NODE_ALIAS = {
+	[562111] = 1731, -- 빈약한 구리 광맥 -> 구리 광맥 (Zephras Isle)
+	[657388] = 1624, -- 왕꽃잎풀 (Riverglades)
+	[657390] = 2041, -- 생명의 뿌리 (Riverglades)
+	[657380] = 1617, -- 은엽수 덤불 (Shen'dralas)
+	[657383] = 1619, -- 뱀뿌리 (Shen'dralas)
+	[176641] = 176587, -- 역병초 (Mount Hyjal)
+	[176645] = 2040, -- 미스릴 광맥 (Mount Hyjal)
+}
+
 local ZONE_LEVEL_DATA = {
 	-- 동부 왕국 (Eastern Kingdoms)
 	[1426] = { 1, 10, 1 },   [1429] = { 1, 10, 1 },   [1420] = { 1, 10, 1 },   [1941] = { 1, 10, 1 },
@@ -412,6 +424,8 @@ local ZONE_LEVEL_DATA = {
 	[1950] = { 10, 20, 20 }, [1413] = { 10, 25, 20 }, [1442] = { 15, 27, 55 }, [1440] = { 18, 30, 55 }, [1441] = { 25, 35, 130 },
 	[1443] = { 30, 40, 130 },[1445] = { 35, 45, 130 },[1444] = { 40, 50, 205 },[1446] = { 40, 50, 205 },[1447] = { 45, 55, 205 },
 	[1448] = { 48, 55, 205 },[1449] = { 48, 55, 205 },[1450] = { 50, 58, 205 },[1452] = { 53, 60, 330 },[1451] = { 55, 60, 330 },
+	-- 새 지역 (levels from the game's area table or its quests; fishing from the fish caught there, Shen'dralas like zones of its level)
+	[2521] = { 1, 12, 1 },   [2665] = { 1, 12, 1 },   [2548] = { 36, 44, 205 }, [2652] = { 42, 45, 130 }, [2482] = { 55, 60, 330 },
 	-- 아웃랜드 (Outland)
 	[1944] = { 58, 63, 280 },[1946] = { 60, 64, 305 },[1952] = { 62, 65, 355 },[1951] = { 64, 67, 380 },[1949] = { 65, 68, 355 },
 	[1953] = { 67, 70, 380 },[1948] = { 67, 70, 380 },
@@ -511,5 +525,6 @@ ns.MINE_SKILL_BY_OBJECT = MINE_SKILL_BY_OBJECT
 ns.FRIENDLY_SUBNAME_KEYWORDS = FRIENDLY_SUBNAME_KEYWORDS
 ns.BADGE_PREFIX_POOLS = BADGE_PREFIX_POOLS
 ns.ZONE_LEVEL_DATA = ZONE_LEVEL_DATA
+ns.GATHER_NODE_ALIAS = GATHER_NODE_ALIAS
 ns.TRANSIT_DATA = TRANSIT_DATA
 ns.FACTION_COLORS = FACTION_COLORS

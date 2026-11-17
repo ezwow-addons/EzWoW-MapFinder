@@ -239,19 +239,23 @@ function NpcSpots.ApplyGather()
     local okData, data = pcall(s.Data)
     local gather = okData and type(data) == "table" and data.gather
     local any = false
+    -- nodes that exist only in the new zones count as the same herb / ore in the data
+    local alias = type(ns.GATHER_NODE_ALIAS) == "table" and ns.GATHER_NODE_ALIAS or {}
     -- (the library marks the spots received from others with shared = true)
     for objectID, spots in pairs(type(gather) == "table" and gather or {}) do
         if type(objectID) == "number" and type(spots) == "table" then
+            local id = alias[objectID] or objectID
             for _, sp in ipairs(spots) do
-                if learnObject(objectID, sp, type(sp) == "table" and sp.shared == true) then any = true end
+                if learnObject(id, sp, type(sp) == "table" and sp.shared == true) then any = true end
             end
         end
     end
     local seed = type(s.Seed) == "function" and s.Seed("gather")
     for objectID, spots in pairs(type(seed) == "table" and seed or {}) do
         if type(objectID) == "number" and type(spots) == "table" then
+            local id = alias[objectID] or objectID
             for _, sp in ipairs(spots) do
-                if learnObject(objectID, sp, true) then any = true end
+                if learnObject(id, sp, true) then any = true end
             end
         end
     end
