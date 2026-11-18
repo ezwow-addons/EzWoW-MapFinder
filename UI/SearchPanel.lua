@@ -368,9 +368,19 @@ function EntityExplorerPanel.rescaleBouncingPins()
     end
 end
 
+-- the player can turn the arrows on the world map off (EzWoW - Data Sharing
+-- settings, /ezshare map arrow off); the pin and the arrow window stay
+function EntityExplorerPanel.mapArrowsOn()
+    local share = _G.EzWoW_Share
+    if type(share) ~= "table" or type(share.MapArrowOn) ~= "function" then return true end
+    local ok, on = pcall(share.MapArrowOn)
+    return not ok or on ~= false
+end
+
 renderActiveEntityMapPins = function()
     EntityExplorerPanel.hideAllWorldMapPins()
     if not ns.selectedEntity or not WorldMapFrame or not WorldMapFrame:IsShown() then return end
+    if not EntityExplorerPanel.mapArrowsOn() then return end
     local mapID = WorldMapFrame.GetMapID and WorldMapFrame:GetMapID()
     local canvasFrame = (WorldMapFrame.GetCanvas and WorldMapFrame:GetCanvas())
         or (_G.EzWoWWorldMapDock and _G.EzWoWWorldMapDock:GetCanvas())
@@ -418,6 +428,17 @@ renderActiveEntityMapPins = function()
     activePinCount = pinCount
     if pinCount > 0 then
         pinAnimFrame:SetScript("OnUpdate", EntityExplorerPanel.tickBouncingPinAnimation)
+    end
+end
+
+-- redrawn when the arrows on the world map are turned on or off (Libs/EzWoWShare)
+do
+    local share = _G.EzWoW_Share
+    if type(share) == "table" and type(share.RegisterCallback) == "function" then
+        share.RegisterCallback("EzWoW-MapFinder-Arrow", function(kinds)
+            if type(kinds) ~= "table" or not kinds.mapArrow then return end
+            pcall(renderActiveEntityMapPins)
+        end)
     end
 end
 

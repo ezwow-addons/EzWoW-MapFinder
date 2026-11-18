@@ -130,7 +130,7 @@ function SettingsDialog.buildMapFinderSettingsFrame()
     local windowFrame = CreateFrame("Frame", "EzWoWMapFinderSettings", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
     -- (taller than the screen: shrunk to fit, Libs/EzWoWGamePad)
     if ns.GamePad and ns.GamePad.KeepOnScreen then ns.GamePad.KeepOnScreen(windowFrame) end
-    windowFrame:SetSize(440, 762)
+    windowFrame:SetSize(440, 788)
     SettingsDialog.restoreSettingsPosition(windowFrame)
     windowFrame:SetFrameStrata("FULLSCREEN_DIALOG")
     windowFrame:SetToplevel(true)
@@ -427,6 +427,43 @@ function SettingsDialog.buildMapFinderSettingsFrame()
         if enabled and ns.GatherPins and ns.GatherPins.autoTrack then pcall(ns.GatherPins.autoTrack) end
     end)
 
+    -- the tracking arrows side by side: settings of every EzWoW addon kept by
+    -- Libs/EzWoWShare (its EzWoW - Data Sharing window has them too)
+    local function arrowSettings()
+        local share = _G.EzWoW_Share
+        if type(share) == "table" and type(share.ArrowOn) == "function" and type(share.MapArrowOn) == "function" then
+            return share
+        end
+        return nil
+    end
+    windowFrame.arrowWindowCheck = createCheckOptionRow(-708, "arrowWindow", nil)
+    windowFrame.mapArrowsCheck = createCheckOptionRow(-708, "mapArrows", nil)
+    windowFrame.arrowWindowCheck.label:SetWidth(GATHER_HALF_WIDTH)
+    windowFrame.mapArrowsCheck.label:SetWidth(GATHER_HALF_WIDTH)
+    for check, setter in pairs({ [windowFrame.arrowWindowCheck] = "SetArrow", [windowFrame.mapArrowsCheck] = "SetMapArrow" }) do
+        check:SetScript("OnClick", function(self)
+            local share = arrowSettings()
+            if not share or type(share[setter]) ~= "function" then return end
+            pcall(share[setter], self:GetChecked() and true or false)
+        end)
+    end
+    -- one state with the EzWoW - Data Sharing window: a change made there (or
+    -- with /ezshare) shows here at once
+    function windowFrame.SyncArrowChecks()
+        local arrows = arrowSettings()
+        windowFrame.arrowWindowCheck:SetChecked(arrows ~= nil and arrows.ArrowOn() == true)
+        windowFrame.mapArrowsCheck:SetChecked(arrows ~= nil and arrows.MapArrowOn() == true)
+    end
+    do
+        local share = arrowSettings()
+        if share and type(share.RegisterCallback) == "function" then
+            share.RegisterCallback("EzWoW-MapFinder-Options", function(kinds)
+                if type(kinds) ~= "table" or not (kinds.arrow or kinds.mapArrow) then return end
+                if windowFrame:IsShown() then pcall(windowFrame.SyncArrowChecks) end
+            end)
+        end
+    end
+
     -- per-type toggles: a small checklist under the "Types" button
     local typesBtn = createStyledActionBtn(96, 20, false, nil)
     windowFrame.serviceTypesBtn = typesBtn
@@ -445,6 +482,10 @@ function SettingsDialog.buildMapFinderSettingsFrame()
         windowFrame.gatherIconsCheck:SetPoint("TOPLEFT", 18, y - 78)
         windowFrame.gatherTrackCheck:ClearAllPoints()
         windowFrame.gatherTrackCheck:SetPoint("TOPLEFT", 18, y - 104)
+        windowFrame.arrowWindowCheck:ClearAllPoints()
+        windowFrame.arrowWindowCheck:SetPoint("TOPLEFT", 18, y - 130)
+        windowFrame.mapArrowsCheck:ClearAllPoints()
+        windowFrame.mapArrowsCheck:SetPoint("TOPLEFT", 18 + GATHER_COLUMN, y - 130)
         typesBtn:ClearAllPoints()
         typesBtn:SetPoint("TOPRIGHT", windowFrame, "TOPRIGHT", -20, y - 1)
     end
@@ -640,10 +681,18 @@ function SettingsDialog.buildMapFinderSettingsFrame()
         self.gatherTrackCheck.label:SetText(L.gatherAutoTrack)
         ns.UIKit:FitFontString(self.gatherTrackCheck.label, 380, 1)
         self.gatherTrackCheck:SetChecked(ns.DB.gatherAutoTrack ~= false)
+        local arrows = arrowSettings()
+        self.arrowWindowCheck.label:SetText(L.arrowWindow)
+        ns.UIKit:FitFontString(self.arrowWindowCheck.label, GATHER_HALF_WIDTH, 1)
+        self.arrowWindowCheck:SetShown(arrows ~= nil)
+        self.mapArrowsCheck.label:SetText(L.mapArrows)
+        ns.UIKit:FitFontString(self.mapArrowsCheck.label, GATHER_HALF_WIDTH, 1)
+        self.mapArrowsCheck:SetShown(arrows ~= nil)
+        self.SyncArrowChecks()
         self.serviceTypesBtn:SetText((L.serviceNpcTypes or "Types") .. " ▼")
         self.PlaceServiceRows(questElsewhere and 52 or 0)
         self.RefreshServiceTypesPopup()
-        self:SetHeight(questElsewhere and 684 or 736)
+        self:SetHeight(questElsewhere and 710 or 762)
         self.resetBtn:SetText(L.resetPos)
         self.donateBtn:SetText(L.donate)
         local getMeta = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata

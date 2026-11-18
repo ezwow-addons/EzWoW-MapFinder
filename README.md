@@ -107,10 +107,12 @@ WoW Forever (`Interface: 16001`) · `/ezmf`
 
 ### 추적 화살표
 
-- 지도에 추적 핀(웨이포인트)을 찍으면 화면에 방향 화살표 창이 뜹니다. 위에는 추적 중인 대상 이름, 가운데는 화살표, 아래에는 남은 거리(야드)와 핀을 찍은 애드온 이름이 나옵니다.
+- 지도에 추적 핀(웨이포인트)을 찍으면 화면에 방향 화살표 창이 뜹니다. 위에는 추적 중인 대상 이름, 가운데는 화살표, 아래에는 남은 거리(야드)가 나옵니다.
 - 10야드 안에 들어오면 "도착"이 나옵니다. X를 누르면 추적 핀을 지웁니다. 창은 끌어서 옮길 수 있습니다.
 - 화살표 창을 **오른쪽 클릭**하면 화살표 모양(금색 화살표·노란 스티커·파란 친구·사탕·자동차·비행기·잠자리)을 고를 수 있습니다. 고른 모양과 창 위치는 모든 EzWoW 애드온에 같이 적용됩니다.
 - 던전 안에서는 게임이 위치를 알려 주지 않아 화살표를 띄우지 않습니다.
+- 화살표 창은 게임 설정 > 애드온 > **EzWoW - Data Sharing**(`/ezshare`)이나 Map Finder 설정 창에서 "화면의 추적 화살표 창"을 끄면 숨길 수 있습니다(지도의 핀은 그대로, 모든 EzWoW 애드온에 같이 적용).
+- 검색 결과·퀘스트 길 안내 때 세계 지도에 뜨는 튀는 화살표는 같은 곳의 "세계 지도의 위치 화살표"로 끕니다.
 
 ### EzWoW - Quest와 함께 쓰기
 
@@ -239,10 +241,12 @@ Map Finder is an offline location search for the World Map: **monsters, rare eli
 
 ### Waypoint arrow
 
-- Setting a map waypoint shows an arrow window: the name of what you track on top, the arrow, then the distance in yards and the addon that set it.
+- Setting a map waypoint shows an arrow window: the name of what you track on top, the arrow, then the distance in yards.
 - Within 10 yards it says "Arrived". The X clears the waypoint. Drag the window to move it.
 - **Right-click** the window to pick the arrow look (gold arrow, sticker, buddy, candy, car, airplane, dragonfly). The look and position are shared by all EzWoW addons.
 - Nothing is shown inside dungeons (the game gives no position there).
+- To hide the arrow window, uncheck "Arrow window on screen" in Options > AddOns > **EzWoW - Data Sharing** (`/ezshare`) or in the Map Finder options; the pin on the map stays, for all EzWoW addons.
+- The bouncing arrows on the world map at a search result or a quest guide spot turn off with "Arrows on the world map" in the same places.
 
 ### Working with EzWoW - Quest
 
