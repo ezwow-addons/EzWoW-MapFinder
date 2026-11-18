@@ -490,6 +490,15 @@ local TRANSIT_DATA = {
 	[1420] = {
 		{ kind = "zepp",   fac = "H", x = 61.9, y = 58.9, dest = 1434, ko = "그롬골 주둔지행 비행선 (가시덤불 골짜기)", en = "Zeppelin to Grom'gol, Stranglethorn" },
 		{ kind = "zepp",   fac = "H", x = 60.6, y = 58.9, dest = 1411, ko = "오그리마행 비행선 (듀로타)", en = "Zeppelin to Orgrimmar, Durotar" },
+		{ kind = "lift",   fac = "N", x = 61.8, y = 75.0, dest = 1458, ko = "언더시티로 내려가는 승강기 (로데론의 폐허)", en = "Lifts down to the Undercity (Ruins of Lordaeron)" },
+	},
+	[1458] = {
+		{ kind = "lift",   fac = "N", x = 60.6, y = 44.0, dest = 1420, ko = "로데론의 폐허로 올라가는 승강기 (티리스팔 숲)", en = "Lift up to the Ruins of Lordaeron, Tirisfal" },
+		{ kind = "lift",   fac = "N", x = 65.9, y = 52.1, dest = 1420, ko = "로데론의 폐허로 올라가는 승강기 (티리스팔 숲)", en = "Lift up to the Ruins of Lordaeron, Tirisfal" },
+		{ kind = "lift",   fac = "N", x = 71.4, y = 44.2, dest = 1420, ko = "로데론의 폐허로 올라가는 승강기 (티리스팔 숲)", en = "Lift up to the Ruins of Lordaeron, Tirisfal" },
+	},
+	[1426] = {
+		{ kind = "lift",   fac = "N", x = 23.4, y = 39.2, dest = 1426, ko = "놈리건 입구 승강기", en = "Gnomeregan entrance lift" },
 	},
 	[1424] = {
 		{ kind = "boat",   fac = "A", x = 50.7, y = 70.4, dest = 1439, ko = "아우버다인(어둠의 해안) · 메네실 항구(저습지)행 배", en = "Boat to Auberdine, Darkshore & Menethil Harbor" },
@@ -521,9 +530,21 @@ local TRANSIT_DATA = {
 	},
 	[1412] = {
 		{ kind = "zepp",   fac = "H", x = 34.3, y = 26.1, dest = 2521, ko = "제프라스 섬행 비행선", en = "Zeppelin to Zephras Isle" },
+		{ kind = "lift",   fac = "N", x = 37.2, y = 38.1, dest = 1456, ko = "썬더 블러프로 올라가는 승강기", en = "Lift up to Thunder Bluff" },
+		{ kind = "lift",   fac = "N", x = 40.9, y = 31.7, dest = 1456, ko = "썬더 블러프로 올라가는 승강기", en = "Lift up to Thunder Bluff" },
 	},
 	[1413] = {
 		{ kind = "boat",   fac = "N", x = 63.8, y = 38.8, dest = 1434, ko = "무법항행 배 (가시덤불 골짜기)", en = "Boat to Booty Bay, Stranglethorn" },
+		{ kind = "lift",   fac = "N", x = 44.0, y = 93.0, dest = 1441, ko = "구름 승강장 (버섯구름 봉우리로 내려감)", en = "The Great Lift down to Thousand Needles" },
+	},
+	-- lifts: the game's lift objects (a ride is no walk, so the zone border doors never show these)
+	[1456] = {
+		{ kind = "lift",   fac = "N", x = 31.5, y = 64.2, dest = 1412, ko = "멀고어로 내려가는 승강기", en = "Lift down to Mulgore" },
+		{ kind = "lift",   fac = "N", x = 53.2, y = 26.2, dest = 1412, ko = "멀고어로 내려가는 승강기", en = "Lift down to Mulgore" },
+	},
+	[1441] = {
+		{ kind = "lift",   fac = "N", x = 31.9, y = 23.9, dest = 1413, ko = "구름 승강장 (불모의 땅으로 올라감)", en = "The Great Lift up to The Barrens" },
+		{ kind = "lift",   fac = "N", x = 46.9, y = 48.6, dest = 1441, ko = "높새바람 봉우리 승강기", en = "Freewind Post lifts" },
 	},
 	[1438] = {
 		{ kind = "boat",   fac = "A", x = 54.8, y = 97.2, dest = 1439, ko = "아우버다인행 배 (어둠의 해안)", en = "Boat to Auberdine, Darkshore" },

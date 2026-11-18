@@ -610,7 +610,8 @@ local TRANSIT_ICONS = {
     zepp = "Interface\\AddOns\\EzWoW-MapFinder\\Media\\Transit-Zeppelin",
     tram = "Interface\\AddOns\\EzWoW-MapFinder\\Media\\Transit-Tram",
     portal = "Interface\\AddOns\\EzWoW-MapFinder\\Media\\Transit-Portal",
-    exit = "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up",   -- only when the door marks are missing
+    lift = "Interface\\AddOns\\EzWoW-MapFinder\\Media\\Transit-Lift",
+    exit ="Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up",   -- only when the door marks are missing
 }
 local pendingTransitMapID, transitNavigationFrame
 
@@ -798,6 +799,19 @@ function WorldMapCanvasEnhancer.filterTransitByFaction(stops, playerFaction)
     return visible
 end
 
+-- A door next to a lift into the same zone is that lift's way (riders step
+-- off there): only the lift mark is drawn.
+local LIFT_DOOR_NEAR = 4   -- percent of the map
+function WorldMapCanvasEnhancer.nearLift(stops, item)
+    for _, stop in ipairs(stops) do
+        if stop.kind == "lift" and stop.dest == item.dest and math.abs(stop.x - item.x) < LIFT_DOOR_NEAR
+            and math.abs(stop.y - item.y) < LIFT_DOOR_NEAR then
+            return true
+        end
+    end
+    return false
+end
+
 function WorldMapCanvasEnhancer.collectTransitForMap(uiMapID)
     local playerFaction = UnitFactionGroup and UnitFactionGroup("player")
     local direct = WorldMapCanvasEnhancer.filterTransitByFaction(TRANSIT_DATA[uiMapID], playerFaction)
@@ -810,7 +824,9 @@ function WorldMapCanvasEnhancer.collectTransitForMap(uiMapID)
         if not isOverview and ns.ZoneExits and ns.ZoneExits.ForMap then
             local okExits, exits = pcall(ns.ZoneExits.ForMap, uiMapID)
             if okExits and type(exits) == "table" then
-                for _, item in ipairs(exits) do direct[#direct + 1] = item end
+                for _, item in ipairs(exits) do
+                    if not WorldMapCanvasEnhancer.nearLift(direct, item) then direct[#direct + 1] = item end
+                end
             end
         end
         return direct
@@ -820,24 +836,27 @@ function WorldMapCanvasEnhancer.collectTransitForMap(uiMapID)
         local ok, minX, maxX, minY, maxY = pcall(C_Map.GetMapRectOnMap, zoneID, uiMapID)
         if ok and minX and maxX and minY and maxY and maxX > minX and maxY > minY then
             for _, stop in ipairs(WorldMapCanvasEnhancer.filterTransitByFaction(stops, playerFaction)) do
-                local x = (minX + (stop.x / 100) * (maxX - minX)) * 100
-                local y = (minY + (stop.y / 100) * (maxY - minY)) * 100
-                local group
-                for _, existing in ipairs(groups) do
-                    if existing.kind == stop.kind and math.abs(existing.x - x) < TRANSIT_MERGE_DISTANCE and math.abs(existing.y - y) < TRANSIT_MERGE_DISTANCE then
-                        group = existing
-                        break
+                -- (lifts only on zone maps: too small a step for the continent and world maps)
+                if stop.kind ~= "lift" then
+                    local x = (minX + (stop.x / 100) * (maxX - minX)) * 100
+                    local y = (minY + (stop.y / 100) * (maxY - minY)) * 100
+                    local group
+                    for _, existing in ipairs(groups) do
+                        if existing.kind == stop.kind and math.abs(existing.x - x) < TRANSIT_MERGE_DISTANCE and math.abs(existing.y - y) < TRANSIT_MERGE_DISTANCE then
+                            group = existing
+                            break
+                        end
                     end
-                end
-                if group then
-                    local duplicate = false
-                    for _, member in ipairs(group.members) do
-                        if member.en == stop.en then duplicate = true break end
+                    if group then
+                        local duplicate = false
+                        for _, member in ipairs(group.members) do
+                            if member.en == stop.en then duplicate = true break end
+                        end
+                        if not duplicate then group.members[#group.members + 1] = stop end
+                    else
+                        groups[#groups + 1] = { kind = stop.kind, fac = stop.fac, x = x, y = y, ko = stop.ko, en = stop.en,
+                            zone = zoneID, members = { stop } }
                     end
-                    if not duplicate then group.members[#group.members + 1] = stop end
-                else
-                    groups[#groups + 1] = { kind = stop.kind, fac = stop.fac, x = x, y = y, ko = stop.ko, en = stop.en,
-                        zone = zoneID, members = { stop } }
                 end
             end
         end

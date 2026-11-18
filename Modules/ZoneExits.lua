@@ -7,24 +7,28 @@
 -- swims over a zone border: two position samples half a second apart, one
 -- on each side, close together and no farther apart than the character's
 -- own speed allows (a flight, a boat, a teleport and a ghost's run are left
--- out). Spots closer than SAME yards are one exit.
+-- out). A crossing made in the air waits for the landing: a jump keeps it, a
+-- longer time in the air (a drop from a peak, a slow-fall glide) drops it, as
+-- no road leads there (the game gives no height: the time in the air decides).
+-- Spots closer than SAME yards are one exit.
 -- The spots are shared with the other EzWoW users (record kind "X":
--- "fromMap,toMap,continent,x,y,dir,2[,w]"; 2 is the record format, w marks
--- a crossing made swimming). A spot is used from the first report; one only
--- crossed swimming (a way over water is seldom a road) needs two players.
--- Older versions did not tell swims apart: their spots are used from the
--- first report too, and the few found over the sea are listed in the shipped
--- data ("exitsBlocked") and never shown.
+-- "fromMap,toMap,continent,x,y,dir,3[,w]"; 3 is the record format, w marks
+-- a crossing made swimming). A spot sent in format 3 (noted with the in-air
+-- rule above) is used from the first report; an older one (format 2 or none:
+-- a drop from a peak looked the same) once two players sent it; one only
+-- crossed swimming (a way over water is seldom a road) needs two players in
+-- any format. The few found over the sea before swims were told apart are
+-- listed in the shipped data ("exitsBlocked") and never shown.
 -- They are also shipped with the addon (Database/ShareSeed.lua, "exits").
 -- Zone maps show a door mark with an arrow (dir: u/d/l/r on the map) at each
 -- spot, on the maps of both zones; a click opens the other zone's map
 -- (Modules/MapEnhancements.lua draws them with the boat and portal marks).
 -- store X: ["from>to"] = { own = { {continent, x, y, dir, n}, ... },
---                          peers = { {continent, x, y, dir, n = votes, by = {}, land, water, ok}, ... } }
--- (own spots noted by these rules carry the format as their 6th value and
+--                          peers = { {continent, x, y, dir, n = votes, by = {}, land, water, checked, ok}, ... } }
+-- (own spots carry the format they were noted by as their 6th value and
 -- true as the 7th while they were only crossed swimming; a peer spot gets
 -- land = true once someone sent it as crossed on land, water = true once
--- someone sent it as swum)
+-- someone sent it as swum, checked = true once someone sent it in format 3)
 local _, ns = ...
 -- every EzWoW mark on the maps can be turned off at once, and the marks only
 -- the shared records make apart (Libs/EzWoWShare MapMarksOn / SharedMarksOn)
@@ -44,7 +48,9 @@ local SAME = 60           -- yards: crossings this close are one exit
 local MAX_OWN = 6         -- own exit spots kept per zone pair
 local MAX_PEERS = 8       -- spots from others kept per zone pair
 local MAX_VOTERS = 8
-local FORMAT = 2          -- record format: tells land and water crossings apart, never a ghost's run
+-- record format: 2 tells land and water crossings apart (never a ghost's run);
+-- 3 also leaves out crossings made dropping from a height or gliding
+local FORMAT = 3
 local ZONE_TYPE = (Enum and Enum.UIMapType and Enum.UIMapType.Zone) or 3
 
 local isSecret = _G.issecretvalue or function() return false end
@@ -132,23 +138,27 @@ ZoneExits.MapName = mapName
 local OPPOSITE = { u = "d", d = "u", l = "r", r = "l" }
 local forMapCache = {}
 
--- a spot from others is shown from the first report, unless it was only
--- ever sent as swum: then once two players sent it
+-- a spot from others: only ever sent as swum, once two players sent it;
+-- sent in format 3 (drops and glides left out), from the first report;
+-- older reports (a drop from a peak looked the same), from the second
 local function shown(sp)
     local n = tonumber(sp.n) or 0
     if sp.water == true and sp.land ~= true then return n >= 2 end
-    return n >= 1
+    if sp.checked == true then return n >= 1 end
+    return n >= 2
 end
 
--- spots shared by mistake before swims were told apart (one over the sea):
--- never shown, in either direction (Database/ShareSeed.lua "exitsBlocked")
+-- spots shared by mistake (one over the sea, the drops from Thunder Bluff):
+-- never shown, in either direction (Database/ShareSeed.lua "exitsBlocked",
+-- {continent, x, y[, radius]})
 local function blocked(from, to, c, x, y)
     local s = ns.Share
     local list = s and type(s.Seed) == "function" and s.Seed("exitsBlocked")
     if type(list) ~= "table" then return false end
     for _, key in ipairs({ from .. ">" .. to, to .. ">" .. from }) do
         for _, sp in ipairs(type(list[key]) == "table" and list[key] or {}) do
-            if type(sp) == "table" and near(sp[1], sp[2], sp[3], c, x, y, SAME) then return true end
+            -- (a 4th value is the radius in yards: a whole zone pair can be taken off)
+            if type(sp) == "table" and near(sp[1], sp[2], sp[3], c, x, y, tonumber(sp[4]) or SAME) then return true end
         end
     end
     return false
@@ -246,8 +256,12 @@ local function noteCrossing(from, to, c, x, y, dir, water)
             -- format as a land crossing from now on. Swum again, it stays as it
             -- was (an older spot keeps the old form, so others keep showing it)
             if not water then
+                local upgraded = sp[6] ~= FORMAT
                 sp[6] = FORMAT
                 sp[7] = nil
+                t[key] = row
+                if upgraded then changed() end
+                return
             end
             t[key] = row
             return
@@ -265,12 +279,66 @@ local function truthy(fn, ...)
     return ok and not isSecret(value) and value and true or false
 end
 
-local last   -- the previous sample: { zone, c, x, y, t, speed }
+-----------------------------------------------------------------------------
+-- In the air: a crossing made while jumping, falling or gliding is held until
+-- the character lands. Up to AIR_JUMP seconds in the air (a jump, also one
+-- with a slow fall) it is noted; longer (a drop from a peak, a glide) it is
+-- dropped. UnitPosition gives no height here (z is 0), so the time decides.
+-----------------------------------------------------------------------------
+local AIR_TICK = 0.1      -- seconds between "in the air?" checks
+local AIR_JUMP = 1.4      -- seconds: longer in the air is a fall or a glide, not a jump
+local AIR_WAIT = 15       -- seconds: a held crossing without a landing is dropped
+
+local Air = { since = nil, held = {} }
+ZoneExits.air = Air
+
+function Air.isAirborne()
+    if truthy(IsFalling) or truthy(IsFlying) then return true end
+    local info = C_PlayerInfo and C_PlayerInfo.GetGlidingInfo
+    if type(info) == "function" then
+        local ok, gliding = pcall(info)
+        if ok and not isSecret(gliding) and gliding == true then return true end
+    end
+    return false
+end
+
+-- one check: the landing settles the held crossings
+function Air.tick(now, airborne)
+    if airborne then
+        Air.since = Air.since or now
+        local first = Air.held[1]
+        if first and now - first.at > AIR_WAIT then Air.held = {} end
+        return
+    end
+    local since = Air.since
+    Air.since = nil
+    if not Air.held[1] then return end
+    local list = Air.held
+    Air.held = {}
+    if since and now - since <= AIR_JUMP then
+        for _, h in ipairs(list) do Air.note(h[1], h[2], h[3], h[4], h[5], h[6], h[7]) end
+    end
+end
+
+-- a crossing made in the air (at this sample or the one before): held
+function Air.hold(now, from, to, c, x, y, dir, water)
+    Air.since = Air.since or now
+    if #Air.held < 4 then Air.held[#Air.held + 1] = { from, to, c, x, y, dir, water, at = now } end
+end
+
+function Air.reset()
+    Air.since, Air.held = nil, {}
+end
+
+Air.note = noteCrossing
+
+local last   -- the previous sample: { zone, c, x, y, t, speed, swim, air }
 
 local function sample()
     if truthy(IsInInstance) or truthy(UnitOnTaxi, "player") or truthy(UnitInVehicle, "player")
         or truthy(UnitIsDeadOrGhost, "player") then
         last = nil
+        Air.reset()
         return
     end
     if not (C_Map and C_Map.GetBestMapForUnit and C_Map.GetPlayerMapPosition and C_Map.GetWorldPosFromMapPos) then return end
@@ -290,8 +358,9 @@ local function sample()
     local now = GetTime()
     local zone = zoneOf(mapID)
     local swimming = truthy(IsSwimming)
+    local air = Air.isAirborne()
     local prev = last
-    last = { zone = zone, c = c, x = x, y = y, t = now, speed = speed, swim = swimming }
+    last = { zone = zone, c = c, x = x, y = y, t = now, speed = speed, swim = swimming, air = air }
     if not (prev and zone and prev.zone and zone ~= prev.zone and prev.c == c) then return end
     local dt = now - prev.t
     if dt <= 0 or dt > MAX_GAP then return end
@@ -308,11 +377,17 @@ local function sample()
         if not okFacing or type(facing) ~= "number" or isSecret(facing) then return end
         dir = direction(math.cos(facing), math.sin(facing))
     end
-    noteCrossing(prev.zone, zone, c, (prev.x + x) / 2, (prev.y + y) / 2, dir, (swimming or prev.swim) and true or nil)
+    local water = (swimming or prev.swim) and true or nil
+    if air or prev.air or Air.since then
+        Air.hold(now, prev.zone, zone, c, (prev.x + x) / 2, (prev.y + y) / 2, dir, water)
+        return
+    end
+    noteCrossing(prev.zone, zone, c, (prev.x + x) / 2, (prev.y + y) / 2, dir, water)
 end
 
 if C_Timer and C_Timer.NewTicker then
     C_Timer.NewTicker(SAMPLE, function() pcall(sample) end)
+    C_Timer.NewTicker(AIR_TICK, function() pcall(Air.tick, GetTime(), Air.isAirborne()) end)
 end
 
 -----------------------------------------------------------------------------
@@ -330,8 +405,10 @@ if s and type(s.RegisterKind) == "function" then
                     for _, sp in ipairs(type(row.own) == "table" and row.own or {}) do
                         if type(sp) == "table" and type(sp[1]) == "number" and type(sp[2]) == "number"
                             and type(sp[3]) == "number" and OPPOSITE[sp[4]] then
+                            -- each spot in the format it was noted by (an older one keeps its
+                            -- record as it was, so its number stays the same)
                             local formatField = ""
-                            if sp[6] == FORMAT then formatField = "," .. FORMAT .. (sp[7] == true and ",w" or "") end
+                            if sp[6] == 2 or sp[6] == FORMAT then formatField = "," .. sp[6] .. (sp[7] == true and ",w" or "") end
                             out[#out + 1] = string.format("%s,%s,%d,%.1f,%.1f,%s%s", from, to, sp[1], sp[2], sp[3], sp[4], formatField)
                         end
                     end
@@ -339,8 +416,8 @@ if s and type(s.RegisterKind) == "function" then
             end
             return out
         end,
-        -- a spot is used from the first report, one only ever swum from the
-        -- second player (the library's "needed" is not applied)
+        -- see shown(): format 3 from the first report, older ones and swims
+        -- from the second player (the library's "needed" is not applied)
         receive = function(text, hash)
             local from, to, c, x, y, dir, recordFormat, waterMark = text:match("^(%d+),(%d+),(%d+),(%-?[%d%.]+),(%-?[%d%.]+),([udlr]),(%d+),?(w?)$")
             if not from then
@@ -380,9 +457,11 @@ if s and type(s.RegisterKind) == "function" then
             end
             t[key] = row
             local wasShown = shown(found)
-            if tonumber(recordFormat) == FORMAT then
+            local fmt = tonumber(recordFormat) or 0
+            if fmt >= 2 then
                 if waterMark == "w" then found.water = true else found.land = true end
             end
+            if fmt >= FORMAT then found.checked = true end
             found.by = type(found.by) == "table" and found.by or {}
             local h = tostring(hash or "?")
             if not found.by[h] and (found.n or 0) < MAX_VOTERS then
