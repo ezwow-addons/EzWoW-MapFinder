@@ -218,9 +218,7 @@ function EntityExplorerPanel.tickBouncingPinAnimation(_, elapsed)
                 pinFrame.pulseRing:SetColorTexture(0.294, 0.784, 0.910, ringAlpha)
                 pinFrame.pulseRing:Show()
             else
-                local bob = 3 + math.abs(math.sin(animTime * 3.6 + index * 0.7)) * 4.5
-                pinFrame.arrow:ClearAllPoints()
-                pinFrame.arrow:SetPoint("BOTTOM", pinFrame, "CENTER", 0, bob)
+                -- (no arrow on the other spots: only their mark stays)
                 pinFrame.pulseRing:Hide()
             end
         end
@@ -407,6 +405,10 @@ renderActiveEntityMapPins = function()
             pinFrame.spawnIndex = index
             pinFrame:SetFrameLevel((canvasFrame:GetFrameLevel() or 10) + (hasPrimary and 440 or 415))
             pinFrame.arrow:SetScale((hasPrimary and 1.0 or 0.72) / cScale)
+            -- one arrow, at the spot pointed at; the other spots keep only their small
+            -- mark (user 11-20: an arrow on every spot of a crowded hunting ground was messy)
+            pinFrame.arrow:SetShown(hasPrimary)
+            pinFrame:SetSize(hasPrimary and 32 or 12, hasPrimary and 46 or 12)
             if hasPrimary then
                 pinFrame.headFill:SetColorTexture(0.294, 0.784, 0.910, 1.0)
                 pinFrame.shaftFill:SetColorTexture(0.294, 0.784, 0.910, 1.0)

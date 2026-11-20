@@ -712,6 +712,58 @@ function EntitySearchEngine.isFriendlyServiceNpc(e)
     return false
 end
 
+-- Quests the location data does not have (new quests of this server and the
+-- like) are still in the quest table (Database/QuestData: givers, turnIns).
+-- They get a search entry of their own, giver spot first, so "Q <name>"
+-- finds them. Only the search uses these entries.
+local MAX_QUEST_TABLE_SPOTS = 6
+
+local function questTableSpots(row, byKey, out, seen)
+    if type(row) ~= "table" then return end
+    local cont, x, y = tonumber(row[3]), tonumber(row[4]), tonumber(row[5])
+    local spots
+    if cont and x and y then
+        spots = { { cont, x, y, 0 } }
+    else
+        -- no spot in the row: where the data has that NPC / object
+        local e = byKey[tostring(row[1]) .. ":" .. tostring(row[2])]
+        spots = e and e.spawns or {}
+    end
+    for _, sp in ipairs(spots) do
+        if #out >= MAX_QUEST_TABLE_SPOTS then return end
+        local key = tostring(sp[1]) .. ":" .. tostring(sp[2]) .. ":" .. tostring(sp[3])
+        if type(sp[2]) == "number" and not seen[key] then
+            seen[key] = true
+            out[#out + 1] = sp
+        end
+    end
+end
+
+local function addQuestTableEntries(pool, haveQuest, byKey)
+    local qd = (type(ns.QuestData) == "function" and ns.QuestData()) or _G.EzWoWMapFinderQuestData
+    if type(qd) ~= "table" then return end
+    local givers = type(qd.givers) == "table" and qd.givers or {}
+    local turnIns = type(qd.turnIns) == "table" and qd.turnIns or {}
+    local ids = {}
+    for questID in pairs(givers) do ids[#ids + 1] = questID end
+    for questID in pairs(turnIns) do
+        if givers[questID] == nil then ids[#ids + 1] = questID end
+    end
+    table.sort(ids, function(a, b) return (tonumber(a) or 0) < (tonumber(b) or 0) end)
+    for _, questID in ipairs(ids) do
+        if type(questID) == "number" and not haveQuest[questID] then
+            local spawns, seen = {}, {}
+            questTableSpots(givers[questID], byKey, spawns, seen)
+            questTableSpots(turnIns[questID], byKey, spawns, seen)
+            if #spawns > 0 then
+                -- flags 1: no giver known, every spot is where it is turned in
+                pool[#pool + 1] = { id = questID, kind = "quest", flags = givers[questID] and 0 or 1,
+                    spawns = spawns, fromQuestTable = true }
+            end
+        end
+    end
+end
+
 function EntitySearchEngine.acquireCategoryEntityPool(cat)
     if not SEARCH_POOLS then
         SEARCH_POOLS = {
@@ -726,11 +778,17 @@ function EntitySearchEngine.acquireCategoryEntityPool(cat)
             item = {},
         }
         local visitedMap = {}
+        local haveQuest, byKey = {}, {}
 
         for _, e in ipairs(EzWoWMapFinderData or {}) do
             if e and not visitedMap[e] then
                 visitedMap[e] = true
                 local entryKey = e.kind
+                if entryKey == "quest" and e.id then
+                    haveQuest[e.id] = true
+                elseif (entryKey == "npc" or entryKey == "object") and e.id and e.spawns then
+                    byKey[entryKey .. ":" .. e.id] = byKey[entryKey .. ":" .. e.id] or e
+                end
                 if entryKey == "npc" then
                     if EntitySearchEngine.isFriendlyServiceNpc(e) then
                         e.isMonster = nil
@@ -754,6 +812,7 @@ function EntitySearchEngine.acquireCategoryEntityPool(cat)
                 end
             end
         end
+        pcall(addQuestTableEntries, SEARCH_POOLS.quest, haveQuest, byKey)
 
         local all = SEARCH_POOLS.all
         for _, entryKey in ipairs({ "monster", "npc", "object", "quest", "item" }) do
