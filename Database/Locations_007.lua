@@ -2,7 +2,7 @@ EzWoWMapFinderData = EzWoWMapFinderData or {}
 EzWoWMapFinderData[#EzWoWMapFinderData+1]={id=16566,kind="item",names={enUS="Warlord's Chain Helmet"},flags=0,spawns={{450,261.77,86.28,25.8}}}
 EzWoWMapFinderData[#EzWoWMapFinderData+1]={id=16567,kind="item",names={enUS="General's Chain Legguards"},flags=0,spawns={{450,261.77,86.28,25.8}}}
 EzWoWMapFinderData[#EzWoWMapFinderData+1]={id=16568,kind="item",names={enUS="Warlord's Chain Shoulders"},flags=0,spawns={{450,261.77,86.28,25.8}}}
-EzWoWMapFinderData[#EzWoWMapFinderData+1]={id=16569,kind="item",names={enUS="General's Chain Boots"},flags=0,spawns={{450,261.77,86.28,25.8}}}
+EzWoWMapFinderData[#EzWoWMapFinderData+1]={id=16569,kind="item",names={enUS="General's Chain Sabatons"},flags=0,spawns={{450,261.77,86.28,25.8}}}
 EzWoWMapFinderData[#EzWoWMapFinderData+1]={id=16571,kind="item",names={enUS="General's Chain Gloves"},flags=0,spawns={{450,261.77,86.28,25.8}}}
 EzWoWMapFinderData[#EzWoWMapFinderData+1]={id=16573,kind="item",names={enUS="General's Mail Boots"},flags=0,spawns={{450,261.77,86.28,25.8}}}
 EzWoWMapFinderData[#EzWoWMapFinderData+1]={id=16574,kind="item",names={enUS="General's Mail Gauntlets"},flags=0,spawns={{450,261.77,86.28,25.8}}}
