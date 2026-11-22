@@ -605,6 +605,9 @@ function SettingsDialog.buildMapFinderSettingsFrame()
 
     local hintText = windowFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     hintText:SetPoint("BOTTOM", 0, 10)
+    -- one line inside the window (2026-11-22: the whole help line ran past both sides)
+    hintText:SetWidth(410)
+    hintText:SetWordWrap(false)
     hintText:SetTextColor(unpack(Theme.muted))
     windowFrame.hintText = hintText
 
@@ -701,7 +704,7 @@ function SettingsDialog.buildMapFinderSettingsFrame()
             isMetaOk, addonVersion = pcall(getMeta, ns.ADDON_NAME or "EzWoW-MapFinder", "Version")
         end
         local versionStr = (isMetaOk and type(addonVersion) == "string" and addonVersion ~= "") and (" v" .. addonVersion) or ""
-        self.hintText:SetText("EzWoW - Map Finder" .. versionStr .. "  ·  " .. (L.help or "/ezmf"))
+        self.hintText:SetText("EzWoW - Map Finder" .. versionStr .. "  ·  /ezmf")
         local langName = L.langAuto
         for _, optionEntry in ipairs(LANG_OPTIONS) do
             if optionEntry.code ~= "auto" and optionEntry.code == (ns.DB.lang or "auto") then langName = optionEntry.label end
