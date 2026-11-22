@@ -712,6 +712,17 @@ function EntitySearchEngine.isFriendlyServiceNpc(e)
     return false
 end
 
+-- a service of the role list (vendor, trainer, flight master, inn, bank, auction, repair);
+-- the quest-giver and gossip bits alone are not one
+function EntitySearchEngine.hasServiceRole(e)
+    local flags = e and e.flags or 0
+    if flags <= 0 then return false end
+    for index = 1, #ROLES do
+        if math.floor(flags / ROLES[index][1]) % 2 == 1 then return true end
+    end
+    return false
+end
+
 -- Quests the location data does not have (new quests of this server and the
 -- like) are still in the quest table (Database/QuestData: givers, turnIns).
 -- They get a search entry of their own, giver spot first, so "Q <name>"
@@ -805,6 +816,12 @@ function EntitySearchEngine.acquireCategoryEntityPool(cat)
                         else
                             SEARCH_POOLS.normalMonster[#SEARCH_POOLS.normalMonster + 1] = e
                         end
+                        -- a vendor or trainer the rare list names too (a merchant that wanders, like
+                        -- Pexmit in Mount Hyjal) is an NPC as well: "N <name>" from the recipe
+                        -- window found nothing (2026-11-22)
+                        if not e.isPet and EntitySearchEngine.hasServiceRole(e) then
+                            SEARCH_POOLS.npc[#SEARCH_POOLS.npc + 1] = e
+                        end
                     end
                 elseif SEARCH_POOLS[entryKey] then
                     local anchorTarget = SEARCH_POOLS[entryKey]
@@ -814,11 +831,15 @@ function EntitySearchEngine.acquireCategoryEntityPool(cat)
         end
         pcall(addQuestTableEntries, SEARCH_POOLS.quest, haveQuest, byKey)
 
-        local all = SEARCH_POOLS.all
+        local all, inAll = SEARCH_POOLS.all, {}
         for _, entryKey in ipairs({ "monster", "npc", "object", "quest", "item" }) do
             local anchorTarget = SEARCH_POOLS[entryKey]
             for index = 1, #anchorTarget do
-                all[#all + 1] = anchorTarget[index]
+                local e = anchorTarget[index]
+                if not inAll[e] then          -- once, also when it is in two lists
+                    inAll[e] = true
+                    all[#all + 1] = e
+                end
             end
         end
     end
