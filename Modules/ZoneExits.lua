@@ -13,12 +13,12 @@
 -- Spots closer than SAME yards are one exit.
 -- The spots are shared with the other EzWoW users (record kind "X":
 -- "fromMap,toMap,continent,x,y,dir,3[,w]"; 3 is the record format, w marks
--- a crossing made swimming). A spot sent in format 3 (noted with the in-air
--- rule above) is used from the first report; an older one (format 2 or none:
--- a drop from a peak looked the same) once two players sent it; one only
--- crossed swimming (a way over water is seldom a road) needs two players in
--- any format. The few found over the sea before swims were told apart are
--- listed in the shipped data ("exitsBlocked") and never shown.
+-- a crossing made swimming). A spot is used once three players crossed it,
+-- in any format, this character's own crossing counting as one of them: one
+-- player walking along a zone border (a cliff foot, a mesa rim) or swimming
+-- along a coast notes crossings that lead nowhere. The few
+-- found over the sea before swims were told apart are listed in the shipped
+-- data ("exitsBlocked") and never shown.
 -- They are also shipped with the addon (Database/ShareSeed.lua, "exits").
 -- Zone maps show a door mark with an arrow (dir: u/d/l/r on the map) at each
 -- spot, on the maps of both zones; a click opens the other zone's map
@@ -133,19 +133,29 @@ end
 ZoneExits.MapName = mapName
 
 -----------------------------------------------------------------------------
--- What is shown: own spots, confirmed spots of others, shipped spots
+-- What is shown: spots three players crossed (others', or mine and two others'), shipped spots
 -----------------------------------------------------------------------------
 local OPPOSITE = { u = "d", d = "u", l = "r", r = "l" }
 local forMapCache = {}
 
--- a spot from others: only ever sent as swum, once two players sent it;
--- sent in format 3 (drops and glides left out), from the first report;
--- older reports (a drop from a peak looked the same), from the second
+-- a spot from others: once three players sent it (one player walking along
+-- a border makes a row of false crossings; three walking the same row are
+-- rare). The land/water/checked marks are still kept with the spot.
+local NEEDED = 3
 local function shown(sp)
-    local n = tonumber(sp.n) or 0
-    if sp.water == true and sp.land ~= true then return n >= 2 end
-    if sp.checked == true then return n >= 1 end
-    return n >= 2
+    return (tonumber(sp.n) or 0) >= NEEDED
+end
+
+-- my own spot: I am one player, so it shows once two others sent a spot near
+-- it (2026-11-22, user: a swim along the coast showed a door from me alone)
+local function ownShown(row, sp)
+    for _, p in ipairs(type(row.peers) == "table" and row.peers or {}) do
+        if type(p) == "table" and (tonumber(p.n) or 0) >= NEEDED - 1
+            and near(p[1], p[2], p[3], sp[1], sp[2], sp[3], SAME) then
+            return true
+        end
+    end
+    return false
 end
 
 -- spots shared by mistake (one over the sea, the drops from Thunder Bluff):
@@ -177,7 +187,7 @@ local function eachSpot(fn)
         from, to = tonumber(from), tonumber(to)
         if from and to and type(row) == "table" then
             for _, sp in ipairs(type(row.own) == "table" and row.own or {}) do
-                if type(sp) == "table" then fn(from, to, sp[1], sp[2], sp[3], sp[4]) end
+                if type(sp) == "table" and ownShown(row, sp) then fn(from, to, sp[1], sp[2], sp[3], sp[4]) end
             end
             for _, sp in ipairs(type(row.peers) == "table" and row.peers or {}) do
                 if type(sp) == "table" and shown(sp) then
@@ -416,8 +426,7 @@ if s and type(s.RegisterKind) == "function" then
             end
             return out
         end,
-        -- see shown(): format 3 from the first report, older ones and swims
-        -- from the second player (the library's "needed" is not applied)
+        -- see shown(): from the third player (the library's "needed" is not applied)
         receive = function(text, hash)
             local from, to, c, x, y, dir, recordFormat, waterMark = text:match("^(%d+),(%d+),(%d+),(%-?[%d%.]+),(%-?[%d%.]+),([udlr]),(%d+),?(w?)$")
             if not from then
@@ -434,8 +443,10 @@ if s and type(s.RegisterKind) == "function" then
             if not t then return false end
             local key = from .. ">" .. to
             local row = type(t[key]) == "table" and t[key] or {}
+            -- (kept also next to my own spot: the others there make it three with me)
+            local ownNear = false
             for _, sp in ipairs(type(row.own) == "table" and row.own or {}) do
-                if type(sp) == "table" and near(sp[1], sp[2], sp[3], c, x, y, SAME) then return false end
+                if type(sp) == "table" and near(sp[1], sp[2], sp[3], c, x, y, SAME) then ownNear = true break end
             end
             row.peers = type(row.peers) == "table" and row.peers or {}
             local found
@@ -444,10 +455,16 @@ if s and type(s.RegisterKind) == "function" then
             end
             if not found then
                 if #row.peers >= MAX_PEERS then
-                    -- the oldest unconfirmed report makes room for a new one
-                    local drop
+                    -- the unconfirmed report with the fewest players (the oldest of
+                    -- those) makes room for a new one
+                    local drop, fewest
                     for i = #row.peers, 1, -1 do
-                        if type(row.peers[i]) ~= "table" or not shown(row.peers[i]) then drop = i break end
+                        local sp = row.peers[i]
+                        if type(sp) ~= "table" then drop = i break end
+                        if not shown(sp) then
+                            local n = tonumber(sp.n) or 0
+                            if not fewest or n < fewest then drop, fewest = i, n end
+                        end
                     end
                     if not drop then return false end
                     table.remove(row.peers, drop)
@@ -457,6 +474,7 @@ if s and type(s.RegisterKind) == "function" then
             end
             t[key] = row
             local wasShown = shown(found)
+            local wasVotes = tonumber(found.n) or 0
             local fmt = tonumber(recordFormat) or 0
             if fmt >= 2 then
                 if waterMark == "w" then found.water = true else found.land = true end
@@ -470,7 +488,9 @@ if s and type(s.RegisterKind) == "function" then
             end
             local nowShown = shown(found)
             found.ok = nowShown or nil
-            if nowShown and not wasShown then
+            -- two others next to my own spot: three with me, my spot shows
+            local ownNow = ownNear and wasVotes < NEEDED - 1 and (tonumber(found.n) or 0) >= NEEDED - 1
+            if (nowShown and not wasShown) or ownNow then
                 changed()
                 return true
             end
