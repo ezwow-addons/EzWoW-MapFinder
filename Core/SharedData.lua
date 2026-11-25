@@ -20,6 +20,9 @@
 --       built-in tables are dropped and the shared table of that language is
 --       loaded when it is picked (UseLocale). A language whose shared module is
 --       not installed keeps its built-in table.
+--       With the built-in data as well (2026-11-25: the six other languages held
+--       about 11 MB): Korean and the client language stay built-in, the others
+--       are dropped the same way when EzWoW - Data can load them.
 --   Database\SharedQuests.lua  (after QuestData)    quest table from the shared
 --       quest data (QuestMap).
 -- The shared tables are never changed: entries are new tables, and the name
@@ -158,8 +161,30 @@ end
 -----------------------------------------------------------------------------
 -- After Database\AllNames_*: shared name tables
 -----------------------------------------------------------------------------
+-- Built-in name tables of languages that are neither Korean nor the client's: dropped when the
+-- shared module of that language can be loaded (UseLocale loads it when the language is picked).
+-- Kept when EzWoW - Data is not installed: a built-in table can't be read again without a reload.
+local function dropUnusedBuiltInNames(D)
+    local translations = _G.EzWoWMapFinderTranslations
+    if not D or type(translations) ~= "table" then return end
+    local ok, client = pcall(D.ClientLocale)
+    if not ok or type(client) ~= "string" then return end
+    for _, loc in ipairs(NAME_LOCALES) do
+        if loc ~= "koKR" and loc ~= client and type(translations[loc]) == "table" then
+            local okLoad, canLoad = pcall(D.CanLoad, "Names-" .. loc)
+            if okLoad and canLoad then
+                translations[loc] = {}
+                lazyLocales[loc] = true
+            end
+        end
+    end
+end
+
 function Shared.AfterNames()
-    if not Shared.active then return end
+    if not Shared.active then
+        dropUnusedBuiltInNames(api())
+        return
+    end
     local D = api()
     local translations = _G.EzWoWMapFinderTranslations
     if type(translations) ~= "table" then
@@ -208,7 +233,7 @@ end
 -- of a language whose built-in table was dropped (out of combat; after the combat otherwise).
 -- Not called from tooltips or other combat paths.
 function Shared.UseLocale(loc)
-    if not (Shared.active and type(loc) == "string" and lazyLocales[loc]) then return end
+    if not (type(loc) == "string" and lazyLocales[loc]) then return end
     local D = api()
     if not D then return end
     pcall(D.Load, "Names-" .. loc, function(_, success)
