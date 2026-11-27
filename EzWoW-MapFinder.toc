@@ -23,7 +23,7 @@
 ## X-Credits: spawn, vendor and item drop data from CMaNGOS Classic-DB (GPL v3)
 ## X-License: GPL-3.0
 ## OptionalDeps: EzWoW-Data
-## Author: qqhrqqhr2
+## Author: ezwow-addons
 ## Version: 2.0.54
 ## Category: EzWoW
 ## SavedVariables: EzWoW_MapFinderDB, EzWoW_SharedData, EzWoW_ShareStore_MapFinder

@@ -9,9 +9,9 @@ CurseForge summary (KO): 월드맵에서 몬스터·희귀 몹·사냥꾼 야수
 
 An offline location search for the World Map of WoW Forever: monsters, rare elites, tameable beasts, NPCs, gathering nodes and objects, quests and items, by name in 8 languages. It also adds World Map conveniences, an alert when a rare monster is nearby, service NPC icons on city maps and gathering helpers for herbalists and miners. Search and map jumps work in combat too.
 
-![World Map search](https://raw.githubusercontent.com/qqhrqqhr2/EzWoW-MapFinder/master/docs/images/ui_en.png)
+![World Map search](https://raw.githubusercontent.com/ezwow-addons/EzWoW-MapFinder/master/docs/images/ui_en.png)
 
-![Settings window](https://raw.githubusercontent.com/qqhrqqhr2/EzWoW-MapFinder/master/docs/images/settings_en.png)
+![Settings window](https://raw.githubusercontent.com/ezwow-addons/EzWoW-MapFinder/master/docs/images/settings_en.png)
 
 *In-game screenshots with the addon set to English. The game client is Korean, so game text such as zone, item and spell names stays Korean. Character and player names and chat text are blurred.*
 
@@ -80,9 +80,9 @@ Languages: English, 한국어, Deutsch, Français, Español, Русский, 简
 
 WoW Forever 월드맵에서 몬스터 · 희귀 몹 · 사냥꾼이 길들일 수 있는 야수 · NPC · 채집물/오브젝트 · 퀘스트 · 아이템 위치를 8개 언어 이름으로 바로 찾아 주는 오프라인 검색 애드온입니다. 월드맵 편의 기능, 근처 레어 몬스터 알림, 도시 지도의 주요 NPC 아이콘, 약초채집·채광 캐릭터를 위한 채집 도우미도 들어 있습니다. 검색과 지도 이동은 전투 중에도 됩니다.
 
-![월드맵 검색](https://raw.githubusercontent.com/qqhrqqhr2/EzWoW-MapFinder/master/docs/images/ui_ko.png)
+![월드맵 검색](https://raw.githubusercontent.com/ezwow-addons/EzWoW-MapFinder/master/docs/images/ui_ko.png)
 
-![설정창](https://raw.githubusercontent.com/qqhrqqhr2/EzWoW-MapFinder/master/docs/images/settings_ko.png)
+![설정창](https://raw.githubusercontent.com/ezwow-addons/EzWoW-MapFinder/master/docs/images/settings_ko.png)
 
 *실제 게임 화면입니다(WoW Forever, 한국어 클라이언트). 캐릭터 · 다른 플레이어 이름과 채팅 내용은 가렸습니다.*
 
